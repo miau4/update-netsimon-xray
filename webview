@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>NETSMON VIP</title>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+
+        html, body {
+          height: 100%;
+          overflow: hidden;
+          background-color: #000;
+          color: #fff;
+        }
+
+        :root {
+          --breeze-red: #6F00FF;
+          --breeze-blue: #001F3F;
+          --glow-blue: #007BFF;
+          --status-green: #2ecc71;
+        }
+
+        body { display: flex; flex-direction: column; align-items: center; }
+
+        @keyframes colorBreeze {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+
+        header { padding: 25px 0 10px 0; flex-shrink: 0; }
+        header img { width: 170px; }
+
+        main {
+          width: 100%;
+          max-width: 450px;
+          flex-grow: 1;
+          display: flex;
+          flex-direction: column;
+          padding: 15px;
+          position: relative;
+        }
+
+        section { display: none; width: 100%; height: 100%; flex-direction: column; align-items: center; justify-content: space-between; padding-bottom: 20px; }
+        section.active { display: flex; animation: fadeIn 0.4s; }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .breeze-card {
+          width: 100%;
+          background: linear-gradient(135deg, var(--breeze-red), #000, var(--breeze-blue), #000, var(--breeze-red));
+          background-size: 300% 300%;
+          animation: colorBreeze 8s linear infinite;
+          border: 1px solid var(--glow-blue);
+          box-shadow: 0 0 15px rgba(0, 123, 255, 0.4);
+          border-radius: 12px;
+          padding: 15px;
+          text-align: center;
+        }
+
+        .info-container { display: flex; gap: 12px; width: 100%; }
+        .info-label { font-size: 0.65rem; color: #fff; text-transform: uppercase; font-weight: bold; margin-bottom: 4px; display: block; }
+        .info-value { font-size: 0.9rem; font-family: monospace; font-weight: bold; }
+
+        .server-selector-wrapper { display: flex; flex-direction: column; align-items: center; cursor: pointer; margin: 10px 0; }
+
+        .server-circle {
+          width: 55px; height: 55px; border-radius: 50%;
+          background: #004691;
+          display: flex; align-items: center; justify-content: center;
+          border: 2px solid var(--glow-blue);
+          box-shadow: 0 0 15px rgba(0, 123, 255, 0.5);
+          overflow: hidden;
+        }
+
+        .server-circle img { width: 100%; height: 100%; object-fit: cover; }
+
+        #btn-connection {
+          width: 170px; height: 170px;
+          border-radius: 50%;
+          border: 4px solid var(--glow-blue);
+          box-shadow: 0 0 30px rgba(0, 123, 255, 0.6);
+          color: #fff;
+          font-size: 1.4rem;
+          font-weight: 900;
+          cursor: pointer;
+          background: linear-gradient(135deg, var(--breeze-red), #000, var(--breeze-blue), #000, var(--breeze-red));
+          background-size: 300% 300%;
+          animation: colorBreeze 5s linear infinite;
+          letter-spacing: 2px;
+        }
+
+        #btn-connection.active {
+          border-color: var(--status-green);
+          box-shadow: 0 0 30px rgba(46, 204, 113, 0.6);
+        }
+
+        #btn-connection:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        .status-text {
+          font-size: 1.1rem;
+          font-weight: 900;
+          margin-top: 10px;
+          height: 24px;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+        }
+
+        .connected { color: var(--status-green); text-shadow: 0 0 10px var(--status-green); }
+        .error-text { color: #e74c3c; }
+
+        .uuid-box {
+          width: 100%;
+          background: transparent;
+          border: none;
+          color: #fff;
+          font-family: monospace;
+          font-size: 1rem;
+          text-align: center;
+          font-weight: bold;
+          outline: none;
+        }
+
+        .config-area {
+          width: 100%;
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 15px;
+          padding: 10px;
+        }
+
+        textarea {
+          height: 45%;
+          background: #0a0a0a;
+          border: 1px solid #333;
+          color: #2ecc71;
+          padding: 12px;
+          font-family: monospace;
+          font-size: 0.85rem;
+          border-radius: 10px;
+          resize: none;
+          outline: none;
+        }
+
+        .btn-save {
+          background: var(--glow-blue);
+          color: #fff;
+          border: none;
+          padding: 15px;
+          border-radius: 10px;
+          font-weight: bold;
+          cursor: pointer;
+          font-size: 1rem;
+        }
+
+        .btn-cancel {
+          background: transparent;
+          color: #666;
+          border: none;
+          padding: 15px;
+          font-weight: bold;
+          cursor: pointer;
+          margin-bottom: 20px;
+        }
+
+        .config-status {
+          font-size: 0.7rem;
+          text-align: center;
+          margin-top: 4px;
+          height: 16px;
+        }
+
+        .expiration-box {
+          font-size: 0.8rem;
+          color: #888;
+          text-align: center;
+          margin-top: 5px;
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <img src="https://i.ibb.co/ccC6BNw/ei-1699404424073-removebg-preview.png" />
+</header>
+
+<main>
+
+    <!-- ==================== TELA HOME ==================== -->
+    <section id="home" class="active">
+        <div class="info-container">
+            <div class="info-box breeze-card">
+                <span class="info-label">IP ATUAL</span>
+                <span class="info-value">177.23.10.42</span>
+            </div>
+            <div class="info-box breeze-card">
+                <span class="info-label">LATÊNCIA</span>
+                <span class="info-value" id="ping-display">-- ms</span>
+            </div>
+        </div>
+
+        <div class="server-selector-wrapper" onclick="goToConfig()">
+            <div class="server-circle">
+                <img src="https://i.ibb.co/gLrmNT8G/imagem-2026-03-27-111301414-removebg-preview.png">
+            </div>
+            <span style="font-size:0.75rem; margin-top:8px; font-weight:bold; letter-spacing:1px">
+                ESCOLHER OPERADORA
+            </span>
+            <span id="config-status" class="config-status"></span>
+        </div>
+
+        <div style="text-align:center">
+            <button id="btn-connection">LIGAR</button>
+            <div id="status-label" class="status-text"></div>
+        </div>
+
+        <div style="width:100%">
+            <span class="info-label" style="text-align:center; width:100%">
+                CHAVE DE ACESSO (UUID)
+            </span>
+            <div class="breeze-card" style="padding:18px">
+                <input type="text" class="uuid-box" id="user-uuid" placeholder="Cole sua CHAVE aqui">
+            </div>
+            <div class="expiration-box">
+                VALIDADE: <span id="exp-date">31/03/2026</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================== TELA CONFIG ==================== -->
+    <section id="config-screen">
+        <h3 style="margin-top:10px">CONFIGURAÇÃO XRAY</h3>
+        <div class="config-area">
+            <span class="info-label">Cole seu JSON ou Link VLESS:</span>
+            <textarea id="config-input" placeholder="vless://... ou JSON completo"></textarea>
+            <button class="btn-save" onclick="saveConfig()">SALVAR E VOLTAR</button>
+            <button class="btn-cancel" onclick="goBack()">CANCELAR</button>
+        </div>
+    </section>
+
+</main>
+
+<script>
+    const btn = document.getElementById('btn-connection');
+    const statusLabel = document.getElementById('status-label');
+    const uuidInput = document.getElementById('user-uuid');
+    const configInput = document.getElementById('config-input');
+    const configStatus = document.getElementById('config-status');
+
+    // -------------------------------------------------------------------------
+    // Storage — usa Android.storageSave/storageGet se disponível,
+    // caso contrário cai no localStorage (teste no browser)
+    // -------------------------------------------------------------------------
+    function storageSave(key, val) {
+        if (window.Android && Android.storageSave) {
+            Android.storageSave(key, val);
+        } else {
+            try { localStorage.setItem(key, val); } catch(e) {}
+        }
+    }
+
+    function storageGet(key) {
+        if (window.Android && Android.storageGet) {
+            return Android.storageGet(key);
+        } else {
+            try { return localStorage.getItem(key); } catch(e) { return null; }
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Inicialização — restaura dados salvos
+    // -------------------------------------------------------------------------
+    window.addEventListener('load', function() {
+        const savedUuid = storageGet('netsmon_uuid');
+        if (savedUuid) uuidInput.value = savedUuid;
+
+        const savedConfig = storageGet('netsmon_config');
+        if (savedConfig) {
+            configInput.value = savedConfig;
+            updateConfigStatus(savedConfig);
+        }
+    });
+
+    function updateConfigStatus(config) {
+        if (!config) {
+            configStatus.textContent = '';
+            return;
+        }
+        if (config.startsWith('vless://')) {
+            configStatus.textContent = '✓ VLESS configurado';
+            configStatus.style.color = '#2ecc71';
+        } else if (config.includes('"outbounds"')) {
+            configStatus.textContent = '✓ JSON configurado';
+            configStatus.style.color = '#2ecc71';
+        } else {
+            configStatus.textContent = '⚠ Config inválido';
+            configStatus.style.color = '#e74c3c';
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Callback do Android — atualiza UI com o estado real do tunnel
+    // -------------------------------------------------------------------------
+    window.onTunnelState = function(state) {
+        btn.disabled = false;
+
+        if (state.error) {
+            btn.innerText = 'LIGAR';
+            btn.classList.remove('active');
+            statusLabel.classList.remove('connected');
+            statusLabel.classList.add('error-text');
+            document.getElementById('ping-display').innerText = '-- ms';
+
+            if (state.error === 'no_config') {
+                statusLabel.innerText = 'SEM CONFIG';
+                alert('Configure a operadora primeiro (botão "Escolher Operadora").');
+            } else if (state.error === 'import_failed') {
+                statusLabel.innerText = 'CONFIG INVÁLIDO';
+                alert('Não foi possível importar o config. Verifique o JSON/VLESS.');
+            } else if (state.error === 'permission_denied') {
+                statusLabel.innerText = 'PERMISSÃO NEGADA';
+            } else {
+                statusLabel.innerText = 'ERRO';
+            }
+            return;
+        }
+
+        statusLabel.classList.remove('error-text');
+
+        if (state.running) {
+            btn.innerText = 'PARAR';
+            btn.classList.add('active');
+            statusLabel.innerText = 'CONECTADO';
+            statusLabel.classList.add('connected');
+            document.getElementById('ping-display').innerText = 'OK';
+        } else {
+            btn.innerText = 'LIGAR';
+            btn.classList.remove('active');
+            statusLabel.innerText = '';
+            statusLabel.classList.remove('connected');
+            document.getElementById('ping-display').innerText = '-- ms';
+        }
+    };
+
+    // -------------------------------------------------------------------------
+    // Botão ligar/desligar
+    // -------------------------------------------------------------------------
+    btn.onclick = function() {
+        const uuid = uuidInput.value.trim();
+
+        if (!uuid) {
+            alert('Insira sua CHAVE DE ACESSO (UUID)!');
+            return;
+        }
+
+        // Valida formato UUID
+        const uuidPattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+        if (!uuidPattern.test(uuid)) {
+            alert('UUID inválido. Verifique o formato: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx');
+            return;
+        }
+
+        storageSave('netsmon_uuid', uuid);
+
+        if (btn.innerText === 'LIGAR') {
+            btn.disabled = true;
+            statusLabel.innerText = 'CONECTANDO...';
+            statusLabel.classList.add('connected');
+            statusLabel.classList.remove('error-text');
+            document.getElementById('ping-display').innerText = 'Aguarde...';
+
+            if (window.Android) {
+                Android.startTunnel(uuid);
+            } else {
+                // Simulação para teste no browser
+                setTimeout(function() {
+                    window.onTunnelState({ running: true, error: null });
+                }, 1500);
+            }
+        } else {
+            btn.disabled = true;
+            if (window.Android) {
+                Android.stopTunnel();
+            } else {
+                window.onTunnelState({ running: false, error: null });
+            }
+        }
+    };
+
+    // -------------------------------------------------------------------------
+    // Navegação
+    // -------------------------------------------------------------------------
+    function goToConfig() {
+        window.history.pushState({ page: 'config' }, 'Config');
+        showPage('config-screen');
+    }
+
+    function goBack() {
+        window.history.back();
+    }
+
+    window.onpopstate = function() {
+        showPage('home');
+    };
+
+    function showPage(id) {
+        document.querySelectorAll('section').forEach(function(s) {
+            s.classList.remove('active');
+        });
+        document.getElementById(id).classList.add('active');
+    }
+
+    // -------------------------------------------------------------------------
+    // Salvar config da operadora
+    // -------------------------------------------------------------------------
+    function saveConfig() {
+        const val = configInput.value.trim();
+        if (!val) {
+            alert('Cole um link VLESS ou JSON antes de salvar.');
+            return;
+        }
+
+        // Validação básica
+        if (!val.startsWith('vless://') && !val.includes('"outbounds"')) {
+            alert('Config não reconhecido. Use um link VLESS (vless://...) ou JSON completo.');
+            return;
+        }
+
+        storageSave('netsmon_config', val);
+        updateConfigStatus(val);
+        alert('Configuração salva!');
+        goBack();
+    }
+</script>
+
+</body>
+</html>
