@@ -1,219 +1,215 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>NETSMON VIP</title>
-
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+    <title>NETSIMON</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI',sans-serif; }
 
-        html, body {
-          height: 100%;
-          overflow: hidden;
-          background-color: #000;
-          color: #fff;
-        }
+        html, body { height:100%; overflow:hidden; background:#000; color:#fff; }
 
         :root {
-          --breeze-red: #6F00FF;
-          --breeze-blue: #001F3F;
-          --glow-blue: #007BFF;
-          --status-green: #2ecc71;
+            --purple: #6F00FF;
+            --blue:   #001F3F;
+            --glow:   #007BFF;
+            --green:  #2ecc71;
+            --red:    #e74c3c;
         }
 
-        body { display: flex; flex-direction: column; align-items: center; }
+        /* ── Background GIF/image ── */
+        #bg-layer {
+            position: fixed; inset: 0; z-index: 0;
+            background-size: cover; background-position: center;
+            background-repeat: no-repeat;
+            opacity: 0.18;
+            pointer-events: none;
+        }
 
+        body { display:flex; flex-direction:column; align-items:center; position:relative; z-index:1; }
+
+        /* ── Animations ── */
         @keyframes colorBreeze {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
+            0%   { background-position:0% 50%; }
+            50%  { background-position:100% 50%; }
+            100% { background-position:0% 50%; }
+        }
+        @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+        @keyframes twinkle {
+            0%,100% { opacity:1; filter:brightness(1) drop-shadow(0 0 6px #007BFF); }
+            40%     { opacity:.6; filter:brightness(.7) drop-shadow(0 0 2px #007BFF); }
+            70%     { opacity:.9; filter:brightness(1.2) drop-shadow(0 0 12px #6F00FF); }
+        }
+        @keyframes pulseBlue {
+            0%,100% { box-shadow:0 0 28px rgba(0,123,255,.6); }
+            50%     { box-shadow:0 0 50px rgba(0,123,255,.95); }
+        }
+        @keyframes pulseGreen {
+            0%,100% { box-shadow:0 0 28px rgba(46,204,113,.6); }
+            50%     { box-shadow:0 0 50px rgba(46,204,113,.95); }
         }
 
-        header { padding: 25px 0 10px 0; flex-shrink: 0; }
-        header img { width: 170px; }
-
-        main {
-          width: 100%;
-          max-width: 450px;
-          flex-grow: 1;
-          display: flex;
-          flex-direction: column;
-          padding: 15px;
-          position: relative;
+        /* ── Header ── */
+        header {
+            padding:18px 0 6px 0; flex-shrink:0;
+            display:flex; flex-direction:column; align-items:center; gap:2px;
+            position:relative;
         }
+        .logo-wrap { position:relative; display:inline-block; }
+        .logo-wrap img {
+            width:140px; display:block;
+            animation: twinkle 3.5s ease-in-out infinite;
+            filter: drop-shadow(0 0 18px rgba(0,123,255,.7));
+        }
+        /* Soft shadow/glow behind logo */
+        .logo-wrap::after {
+            content:'';
+            position:absolute; inset:-12px;
+            background: radial-gradient(ellipse at center, rgba(0,123,255,.35) 0%, transparent 70%);
+            pointer-events:none;
+            animation: pulseBlue 3.5s ease-in-out infinite;
+            border-radius:50%;
+        }
+        .app-version { font-size:.58rem; color:#444; letter-spacing:2px; text-transform:uppercase; }
 
-        section { display: none; width: 100%; height: 100%; flex-direction: column; align-items: center; justify-content: space-between; padding-bottom: 20px; }
-        section.active { display: flex; animation: fadeIn 0.4s; }
+        /* ── Main ── */
+        main { width:100%; max-width:450px; flex-grow:1; display:flex; flex-direction:column; padding:10px 14px; }
 
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        section { display:none; width:100%; height:100%; flex-direction:column; align-items:center; justify-content:space-between; padding-bottom:14px; }
+        section.active { display:flex; animation:fadeIn .4s; }
 
+        /* ── Cards ── */
         .breeze-card {
-          width: 100%;
-          background: linear-gradient(135deg, var(--breeze-red), #000, var(--breeze-blue), #000, var(--breeze-red));
-          background-size: 300% 300%;
-          animation: colorBreeze 8s linear infinite;
-          border: 1px solid var(--glow-blue);
-          box-shadow: 0 0 15px rgba(0, 123, 255, 0.4);
-          border-radius: 12px;
-          padding: 15px;
-          text-align: center;
+            background: linear-gradient(135deg,var(--purple),#000,var(--blue),#000,var(--purple));
+            background-size:300% 300%;
+            animation: colorBreeze 8s linear infinite;
+            border:1px solid var(--glow);
+            box-shadow:0 0 12px rgba(0,123,255,.3);
+            border-radius:10px;
+            text-align:center;
         }
+        .info-container { display:flex; gap:10px; width:100%; }
+        /* 20% menor que antes */
+        .info-box { flex:1; padding:8px 10px; }
+        .info-label { font-size:.58rem; color:#aaa; text-transform:uppercase; font-weight:bold; margin-bottom:2px; display:block; letter-spacing:1px; }
+        .info-value { font-size:.85rem; font-family:monospace; font-weight:bold; }
 
-        .info-container { display: flex; gap: 12px; width: 100%; }
-        .info-label { font-size: 0.65rem; color: #fff; text-transform: uppercase; font-weight: bold; margin-bottom: 4px; display: block; }
-        .info-value { font-size: 0.9rem; font-family: monospace; font-weight: bold; }
-
-        .server-selector-wrapper { display: flex; flex-direction: column; align-items: center; cursor: pointer; margin: 10px 0; }
-
+        /* ── Operadora button (inactive) ── */
+        .server-selector-wrapper {
+            display:flex; flex-direction:column; align-items:center;
+            margin:8px 0; opacity:.45; pointer-events:none; /* inativo */
+        }
         .server-circle {
-          width: 55px; height: 55px; border-radius: 50%;
-          background: #004691;
-          display: flex; align-items: center; justify-content: center;
-          border: 2px solid var(--glow-blue);
-          box-shadow: 0 0 15px rgba(0, 123, 255, 0.5);
-          overflow: hidden;
+            width:50px; height:50px; border-radius:50%;
+            background:#004691;
+            display:flex; align-items:center; justify-content:center;
+            border:2px solid var(--glow);
+            box-shadow:0 0 12px rgba(0,123,255,.4);
+            overflow:hidden;
         }
+        .server-circle img { width:100%; height:100%; object-fit:cover; }
 
-        .server-circle img { width: 100%; height: 100%; object-fit: cover; }
-
+        /* ── Connect button ── */
         #btn-connection {
-          width: 170px; height: 170px;
-          border-radius: 50%;
-          border: 4px solid var(--glow-blue);
-          box-shadow: 0 0 30px rgba(0, 123, 255, 0.6);
-          color: #fff;
-          font-size: 1.4rem;
-          font-weight: 900;
-          cursor: pointer;
-          background: linear-gradient(135deg, var(--breeze-red), #000, var(--breeze-blue), #000, var(--breeze-red));
-          background-size: 300% 300%;
-          animation: colorBreeze 5s linear infinite;
-          letter-spacing: 2px;
+            width:155px; height:155px; border-radius:50%;
+            border:4px solid var(--glow);
+            color:#fff; font-size:1.25rem; font-weight:900; cursor:pointer;
+            background: linear-gradient(135deg,var(--purple),#000,var(--blue),#000,var(--purple));
+            background-size:300% 300%;
+            animation: colorBreeze 5s linear infinite, pulseBlue 3s ease-in-out infinite;
+            letter-spacing:2px; transition:border-color .3s;
         }
-
         #btn-connection.active {
-          border-color: var(--status-green);
-          box-shadow: 0 0 30px rgba(46, 204, 113, 0.6);
+            border-color:var(--green);
+            animation: colorBreeze 5s linear infinite, pulseGreen 3s ease-in-out infinite;
         }
-
-        #btn-connection:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
+        #btn-connection:disabled { opacity:.5; cursor:not-allowed; }
 
         .status-text {
-          font-size: 1.1rem;
-          font-weight: 900;
-          margin-top: 10px;
-          height: 24px;
-          text-transform: uppercase;
-          letter-spacing: 1px;
+            font-size:.95rem; font-weight:900; margin-top:7px;
+            height:20px; text-transform:uppercase; letter-spacing:1px;
         }
+        .connected  { color:var(--green); text-shadow:0 0 10px var(--green); }
+        .error-text { color:var(--red); }
 
-        .connected { color: var(--status-green); text-shadow: 0 0 10px var(--status-green); }
-        .error-text { color: #e74c3c; }
-
+        /* ── UUID field ── */
         .uuid-box {
-          width: 100%;
-          background: transparent;
-          border: none;
-          color: #fff;
-          font-family: monospace;
-          font-size: 1rem;
-          text-align: center;
-          font-weight: bold;
-          outline: none;
+            width:100%; background:transparent; border:none;
+            color:#fff; font-family:monospace; font-size:.92rem;
+            text-align:center; font-weight:bold; outline:none;
         }
 
-        .config-area {
-          width: 100%;
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          gap: 15px;
-          padding: 10px;
-        }
+        /* ── Expiry ── */
+        .expiration-box { font-size:.72rem; color:#888; text-align:center; margin-top:4px; }
+        .expiry-value { font-weight:bold; }
+        .expiry-ok    { color:var(--green); }
+        .expiry-warn  { color:var(--red); }
+        .expiry-unk   { color:#888; }
 
+        /* ── Ping clickable ── */
+        #ping-display { cursor:pointer; text-decoration:underline dotted rgba(255,255,255,.3); }
+        #ping-display:hover { color:var(--glow); }
+
+        /* ── Config screen ── */
+        .config-area { width:100%; flex:1; display:flex; flex-direction:column; gap:12px; padding:10px; }
         textarea {
-          height: 45%;
-          background: #0a0a0a;
-          border: 1px solid #333;
-          color: #2ecc71;
-          padding: 12px;
-          font-family: monospace;
-          font-size: 0.85rem;
-          border-radius: 10px;
-          resize: none;
-          outline: none;
+            height:30%;
+            background:#0a0a0a; border:1px solid #333;
+            color:#2ecc71; padding:12px;
+            font-family:monospace; font-size:.8rem;
+            border-radius:10px; resize:none; outline:none;
         }
-
+        .gif-field {
+            background:#0a0a0a; border:1px solid #333; color:#aaa;
+            padding:10px 12px; font-family:monospace; font-size:.78rem;
+            border-radius:10px; outline:none; width:100%;
+        }
+        .gif-field::placeholder { color:#444; }
         .btn-save {
-          background: var(--glow-blue);
-          color: #fff;
-          border: none;
-          padding: 15px;
-          border-radius: 10px;
-          font-weight: bold;
-          cursor: pointer;
-          font-size: 1rem;
+            background:var(--glow); color:#fff; border:none;
+            padding:13px; border-radius:10px; font-weight:bold;
+            cursor:pointer; font-size:.9rem;
         }
-
         .btn-cancel {
-          background: transparent;
-          color: #666;
-          border: none;
-          padding: 15px;
-          font-weight: bold;
-          cursor: pointer;
-          margin-bottom: 20px;
+            background:transparent; color:#555; border:none;
+            padding:13px; font-weight:bold; cursor:pointer; margin-bottom:12px;
         }
-
-        .config-status {
-          font-size: 0.7rem;
-          text-align: center;
-          margin-top: 4px;
-          height: 16px;
-        }
-
-        .expiration-box {
-          font-size: 0.8rem;
-          color: #888;
-          text-align: center;
-          margin-top: 5px;
-        }
+        .field-label { font-size:.6rem; color:#666; text-transform:uppercase; letter-spacing:1px; margin-bottom:2px; }
     </style>
 </head>
-
 <body>
 
+<!-- Background layer (GIF/image) -->
+<div id="bg-layer"></div>
+
 <header>
-    <img src="https://i.ibb.co/ccC6BNw/ei-1699404424073-removebg-preview.png" />
+    <div class="logo-wrap">
+        <img id="logo-img" src="https://i.ibb.co/ccC6BNw/ei-1699404424073-removebg-preview.png"/>
+    </div>
+    <span class="app-version">NETSIMON v2.0</span>
 </header>
 
 <main>
 
-    <!-- ==================== TELA HOME ==================== -->
+    <!-- ==================== HOME ==================== -->
     <section id="home" class="active">
+
         <div class="info-container">
             <div class="info-box breeze-card">
-                <span class="info-label">IP ATUAL</span>
-                <span class="info-value">177.23.10.42</span>
+                <span class="info-label">IP / HOST</span>
+                <span class="info-value" id="ip-display">--</span>
             </div>
             <div class="info-box breeze-card">
                 <span class="info-label">LATÊNCIA</span>
-                <span class="info-value" id="ping-display">-- ms</span>
+                <span class="info-value" id="ping-display" onclick="requestPing()" title="Clique para medir">-- ms</span>
             </div>
         </div>
 
-        <div class="server-selector-wrapper" onclick="goToConfig()">
+        <!-- Botão operadora (inativo visualmente) -->
+        <div class="server-selector-wrapper">
             <div class="server-circle">
                 <img src="https://i.ibb.co/gLrmNT8G/imagem-2026-03-27-111301414-removebg-preview.png">
             </div>
-            <span style="font-size:0.75rem; margin-top:8px; font-weight:bold; letter-spacing:1px">
-                ESCOLHER OPERADORA
-            </span>
-            <span id="config-status" class="config-status"></span>
         </div>
 
         <div style="text-align:center">
@@ -222,24 +218,38 @@
         </div>
 
         <div style="width:100%">
-            <span class="info-label" style="text-align:center; width:100%">
+            <span class="info-label" style="text-align:center;width:100%;display:block;margin-bottom:5px">
                 CHAVE DE ACESSO (UUID)
             </span>
-            <div class="breeze-card" style="padding:18px">
-                <input type="text" class="uuid-box" id="user-uuid" placeholder="Cole sua CHAVE aqui">
+            <div class="breeze-card" style="padding:14px">
+                <input type="text" class="uuid-box" id="user-uuid"
+                       placeholder="Cole sua CHAVE aqui"
+                       oninput="onUuidInput(this.value)">
             </div>
             <div class="expiration-box">
-                VALIDADE: <span id="exp-date">31/03/2026</span>
+                VALIDADE: <span id="exp-date" class="expiry-value expiry-unk">--/--/----</span>
+                <span id="exp-days" style="margin-left:5px;font-size:.68rem"></span>
             </div>
         </div>
+
     </section>
 
-    <!-- ==================== TELA CONFIG ==================== -->
+    <!-- ==================== CONFIG ==================== -->
     <section id="config-screen">
-        <h3 style="margin-top:10px">CONFIGURAÇÃO XRAY</h3>
+        <h3 style="margin-top:10px;font-size:.95rem;letter-spacing:1px">CONFIGURAÇÕES AVANÇADAS</h3>
         <div class="config-area">
-            <span class="info-label">Cole seu JSON ou Link VLESS:</span>
-            <textarea id="config-input" placeholder="vless://... ou JSON completo"></textarea>
+
+            <div>
+                <div class="field-label">Config JSON ou VLESS personalizado (opcional)</div>
+                <textarea id="config-input" placeholder="Deixe vazio para usar a config padrão do sistema."></textarea>
+            </div>
+
+            <div>
+                <div class="field-label">Link do GIF / imagem / vídeo de fundo (opcional — .gif, .jpg, .mp4, .webm)</div>
+                <input type="url" class="gif-field" id="gif-url-input"
+                       placeholder="https://exemplo.com/animacao.gif ou video.mp4">
+            </div>
+
             <button class="btn-save" onclick="saveConfig()">SALVAR E VOLTAR</button>
             <button class="btn-cancel" onclick="goBack()">CANCELAR</button>
         </div>
@@ -248,197 +258,240 @@
 </main>
 
 <script>
-    const btn = document.getElementById('btn-connection');
-    const statusLabel = document.getElementById('status-label');
-    const uuidInput = document.getElementById('user-uuid');
-    const configInput = document.getElementById('config-input');
-    const configStatus = document.getElementById('config-status');
+    // =============================================================================
+    // ⚙️ CONFIGURAÇÃO RÁPIDA — edite apenas esta linha para trocar o fundo
+    // Cole o link do GIF/imagem desejado, ou deixe '' para usar cor sólida padrão
+    // =============================================================================
+    var DEFAULT_BG_URL = '';
 
-    // -------------------------------------------------------------------------
-    // Storage — usa Android.storageSave/storageGet se disponível,
-    // caso contrário cai no localStorage (teste no browser)
-    // -------------------------------------------------------------------------
+    // =============================================================================
+    // Storage
+    // =============================================================================
     function storageSave(key, val) {
-        if (window.Android && Android.storageSave) {
-            Android.storageSave(key, val);
-        } else {
-            try { localStorage.setItem(key, val); } catch(e) {}
-        }
+        if (window.Android && Android.storageSave) Android.storageSave(key, val);
+        else try { localStorage.setItem(key, val); } catch(e) {}
     }
-
     function storageGet(key) {
-        if (window.Android && Android.storageGet) {
-            return Android.storageGet(key);
-        } else {
-            try { return localStorage.getItem(key); } catch(e) { return null; }
-        }
+        if (window.Android && Android.storageGet) return Android.storageGet(key);
+        try { return localStorage.getItem(key); } catch(e) { return null; }
     }
 
-    // -------------------------------------------------------------------------
-    // Inicialização — restaura dados salvos
-    // -------------------------------------------------------------------------
-    window.addEventListener('load', function() {
-        const savedUuid = storageGet('netsmon_uuid');
-        if (savedUuid) uuidInput.value = savedUuid;
+    // =============================================================================
+    // Init
+    // =============================================================================
+    var uuidCheckTimer = null;
+    var isConnected = false;
 
-        const savedConfig = storageGet('netsmon_config');
-        if (savedConfig) {
-            configInput.value = savedConfig;
-            updateConfigStatus(savedConfig);
+    window.addEventListener('load', function() {
+        // UUID salvo
+        var savedUuid = storageGet('netsmon_uuid');
+        if (savedUuid) {
+            document.getElementById('user-uuid').value = savedUuid;
+            checkExpiry(savedUuid);
         }
+
+        // Config salvo
+        var savedConfig = storageGet('netsmon_config');
+        if (savedConfig) document.getElementById('config-input').value = savedConfig;
+
+        // GIF de fundo — prioridade: salvo pelo usuário > DEFAULT_BG_URL > cor sólida
+        var savedGif = storageGet('netsmon_bg');
+        applyBackground(savedGif || DEFAULT_BG_URL);
+
+        // GIF input (tela de config)
+        document.getElementById('gif-url-input').value = savedGif || DEFAULT_BG_URL;
+
+        // Busca atualizações
+        if (window.Android && Android.checkUpdates) Android.checkUpdates();
     });
 
-    function updateConfigStatus(config) {
-        if (!config) {
-            configStatus.textContent = '';
+    // =============================================================================
+    // Background — suporta GIF, imagem e vídeo MP4/WebM
+    // =============================================================================
+    function applyBackground(url) {
+        var bg = document.getElementById('bg-layer');
+
+        // Remove vídeo anterior se existir
+        var oldVideo = document.getElementById('bg-video');
+        if (oldVideo) oldVideo.remove();
+
+        if (!url || url.trim() === '') {
+            bg.style.backgroundImage = 'none';
             return;
         }
-        if (config.startsWith('vless://')) {
-            configStatus.textContent = '✓ VLESS configurado';
-            configStatus.style.color = '#2ecc71';
-        } else if (config.includes('"outbounds"')) {
-            configStatus.textContent = '✓ JSON configurado';
-            configStatus.style.color = '#2ecc71';
+
+        url = url.trim();
+        var isVideo = /\.(mp4|webm|ogg)(\?.*)?$/i.test(url);
+
+        if (isVideo) {
+            // Cria elemento <video> como fundo
+            bg.style.backgroundImage = 'none';
+            var video = document.createElement('video');
+            video.id = 'bg-video';
+            video.src = url;
+            video.autoplay = true;
+            video.loop = true;
+            video.muted = true;
+            video.playsInline = true;
+            video.style.cssText = [
+                'position:fixed', 'inset:0', 'z-index:0',
+                'width:100%', 'height:100%',
+                'object-fit:cover',
+                'opacity:0.18',
+                'pointer-events:none'
+            ].join(';');
+            document.body.insertBefore(video, document.body.firstChild);
         } else {
-            configStatus.textContent = '⚠ Config inválido';
-            configStatus.style.color = '#e74c3c';
+            // GIF ou imagem estática
+            bg.style.backgroundImage = "url('" + url + "')";
         }
     }
 
-    // -------------------------------------------------------------------------
-    // Callback do Android — atualiza UI com o estado real do tunnel
-    // -------------------------------------------------------------------------
+    // =============================================================================
+    // UUID input — debounce 1s para buscar validade
+    // =============================================================================
+    var uuidPattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+    function onUuidInput(val) {
+        clearTimeout(uuidCheckTimer);
+        if (uuidPattern.test(val.trim())) {
+            uuidCheckTimer = setTimeout(function() { checkExpiry(val.trim()); }, 1000);
+        } else {
+            document.getElementById('exp-date').textContent = '--/--/----';
+            document.getElementById('exp-date').className = 'expiry-value expiry-unk';
+            document.getElementById('exp-days').textContent = '';
+        }
+    }
+
+    function checkExpiry(uuid) {
+        document.getElementById('exp-date').textContent = 'consultando...';
+        document.getElementById('exp-date').className = 'expiry-value expiry-unk';
+        document.getElementById('exp-days').textContent = '';
+        if (window.Android && Android.checkExpiry) Android.checkExpiry(uuid);
+    }
+
+    // Callback do Android — resultado da validade
+    window.onExpiryResult = function(r) {
+        var el = document.getElementById('exp-date');
+        var elD = document.getElementById('exp-days');
+        el.textContent = r.date || '--/--/----';
+        if (r.days < 0) {
+            el.className = 'expiry-value expiry-unk'; elD.textContent = '';
+        } else if (r.days <= 5) {
+            el.className = 'expiry-value expiry-warn'; elD.textContent = '(' + r.days + ' dia(s) restantes)';
+        } else {
+            el.className = 'expiry-value expiry-ok'; elD.textContent = '(' + r.days + ' dias)';
+        }
+    };
+
+    // =============================================================================
+    // Ping
+    // =============================================================================
+    function requestPing() {
+        if (!isConnected) return;
+        document.getElementById('ping-display').textContent = 'medindo...';
+        if (window.Android && Android.measurePingNow) Android.measurePingNow();
+    }
+
+    window.onPingResult = function(ping) {
+        document.getElementById('ping-display').textContent = ping < 0 ? 'timeout' : ping + ' ms';
+    };
+
+    // =============================================================================
+    // Tunnel state callback
+    // =============================================================================
     window.onTunnelState = function(state) {
+        var btn = document.getElementById('btn-connection');
+        var statusLabel = document.getElementById('status-label');
         btn.disabled = false;
 
         if (state.error) {
-            btn.innerText = 'LIGAR';
-            btn.classList.remove('active');
-            statusLabel.classList.remove('connected');
-            statusLabel.classList.add('error-text');
-            document.getElementById('ping-display').innerText = '-- ms';
-
-            if (state.error === 'no_config') {
-                statusLabel.innerText = 'SEM CONFIG';
-                alert('Configure a operadora primeiro (botão "Escolher Operadora").');
-            } else if (state.error === 'import_failed') {
-                statusLabel.innerText = 'CONFIG INVÁLIDO';
-                alert('Não foi possível importar o config. Verifique o JSON/VLESS.');
-            } else if (state.error === 'permission_denied') {
-                statusLabel.innerText = 'PERMISSÃO NEGADA';
-            } else {
-                statusLabel.innerText = 'ERRO';
-            }
+            isConnected = false;
+            btn.innerText = 'LIGAR'; btn.classList.remove('active');
+            statusLabel.classList.remove('connected'); statusLabel.classList.add('error-text');
+            document.getElementById('ping-display').textContent = '-- ms';
+            var msgs = { 'import_failed':'CONFIG INVÁLIDO', 'permission_denied':'PERMISSÃO NEGADA', 'exception':'ERRO INTERNO' };
+            statusLabel.innerText = msgs[state.error] || 'ERRO';
+            if (state.error === 'import_failed') alert('Não foi possível importar o config. Verifique o JSON.');
             return;
         }
 
         statusLabel.classList.remove('error-text');
-
         if (state.running) {
-            btn.innerText = 'PARAR';
-            btn.classList.add('active');
-            statusLabel.innerText = 'CONECTADO';
-            statusLabel.classList.add('connected');
-            document.getElementById('ping-display').innerText = 'OK';
+            isConnected = true;
+            btn.innerText = 'PARAR'; btn.classList.add('active');
+            statusLabel.innerText = 'CONECTADO'; statusLabel.classList.add('connected');
+            document.getElementById('ping-display').textContent = 'medindo...';
         } else {
-            btn.innerText = 'LIGAR';
-            btn.classList.remove('active');
-            statusLabel.innerText = '';
-            statusLabel.classList.remove('connected');
-            document.getElementById('ping-display').innerText = '-- ms';
+            isConnected = false;
+            btn.innerText = 'LIGAR'; btn.classList.remove('active');
+            statusLabel.innerText = ''; statusLabel.classList.remove('connected');
+            document.getElementById('ping-display').textContent = '-- ms';
+            document.getElementById('ip-display').textContent = '--';
         }
     };
 
-    // -------------------------------------------------------------------------
+    // =============================================================================
     // Botão ligar/desligar
-    // -------------------------------------------------------------------------
-    btn.onclick = function() {
-        const uuid = uuidInput.value.trim();
+    // =============================================================================
+    document.getElementById('btn-connection').onclick = function() {
+        var btn = document.getElementById('btn-connection');
+        var statusLabel = document.getElementById('status-label');
+        var uuid = document.getElementById('user-uuid').value.trim();
 
-        if (!uuid) {
-            alert('Insira sua CHAVE DE ACESSO (UUID)!');
-            return;
-        }
-
-        // Valida formato UUID
-        const uuidPattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
-        if (!uuidPattern.test(uuid)) {
-            alert('UUID inválido. Verifique o formato: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx');
-            return;
-        }
+        if (!uuid) { alert('Insira sua CHAVE DE ACESSO (UUID)!'); return; }
+        if (!uuidPattern.test(uuid)) { alert('UUID inválido.\nFormato: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'); return; }
 
         storageSave('netsmon_uuid', uuid);
 
         if (btn.innerText === 'LIGAR') {
             btn.disabled = true;
             statusLabel.innerText = 'CONECTANDO...';
-            statusLabel.classList.add('connected');
-            statusLabel.classList.remove('error-text');
-            document.getElementById('ping-display').innerText = 'Aguarde...';
-
-            if (window.Android) {
-                Android.startTunnel(uuid);
-            } else {
-                // Simulação para teste no browser
-                setTimeout(function() {
-                    window.onTunnelState({ running: true, error: null });
-                }, 1500);
-            }
+            statusLabel.classList.add('connected'); statusLabel.classList.remove('error-text');
+            document.getElementById('ping-display').textContent = 'aguarde...';
+            if (window.Android) Android.startTunnel(uuid);
+            else setTimeout(function() { window.onTunnelState({running:true,error:null}); setTimeout(function(){window.onPingResult(92);},1200); }, 1200);
         } else {
             btn.disabled = true;
-            if (window.Android) {
-                Android.stopTunnel();
-            } else {
-                window.onTunnelState({ running: false, error: null });
-            }
+            if (window.Android) Android.stopTunnel();
+            else window.onTunnelState({running:false,error:null});
         }
     };
 
-    // -------------------------------------------------------------------------
+    // =============================================================================
     // Navegação
-    // -------------------------------------------------------------------------
+    // =============================================================================
     function goToConfig() {
-        window.history.pushState({ page: 'config' }, 'Config');
+        window.history.pushState({page:'config'}, 'Config');
         showPage('config-screen');
     }
-
-    function goBack() {
-        window.history.back();
-    }
-
-    window.onpopstate = function() {
-        showPage('home');
-    };
-
+    function goBack() { window.history.back(); }
+    window.onpopstate = function() { showPage('home'); };
     function showPage(id) {
-        document.querySelectorAll('section').forEach(function(s) {
-            s.classList.remove('active');
-        });
+        document.querySelectorAll('section').forEach(function(s){ s.classList.remove('active'); });
         document.getElementById(id).classList.add('active');
     }
 
-    // -------------------------------------------------------------------------
-    // Salvar config da operadora
-    // -------------------------------------------------------------------------
+    // =============================================================================
+    // Salvar configurações avançadas
+    // =============================================================================
     function saveConfig() {
-        const val = configInput.value.trim();
-        if (!val) {
-            alert('Cole um link VLESS ou JSON antes de salvar.');
+        // Config JSON/VLESS
+        var val = document.getElementById('config-input').value.trim();
+        if (val && !val.startsWith('vless://') && !val.includes('"outbounds"')) {
+            alert('Config não reconhecido.\nUse VLESS (vless://...) ou JSON completo com "outbounds".');
             return;
         }
-
-        // Validação básica
-        if (!val.startsWith('vless://') && !val.includes('"outbounds"')) {
-            alert('Config não reconhecido. Use um link VLESS (vless://...) ou JSON completo.');
-            return;
-        }
-
         storageSave('netsmon_config', val);
-        updateConfigStatus(val);
-        alert('Configuração salva!');
+
+        // GIF de fundo
+        var gifUrl = document.getElementById('gif-url-input').value.trim();
+        storageSave('netsmon_bg', gifUrl);
+        applyBackground(gifUrl);
+
+        alert('Configurações salvas!');
         goBack();
     }
 </script>
-
 </body>
 </html>
