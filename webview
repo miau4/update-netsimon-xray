@@ -196,12 +196,13 @@
 
         <div class="info-container">
             <div class="info-box breeze-card">
-                <span class="info-label">IP / HOST</span>
-                <span class="info-value" id="ip-display">--</span>
+                <span class="info-label">CONECTADO</span>
+                <span class="info-value" id="timer-display">--:--:--</span>
             </div>
-            <div class="info-box breeze-card">
-                <span class="info-label">LATÊNCIA</span>
-                <span class="info-value" id="ping-display" onclick="requestPing()" title="Clique para medir">-- ms</span>
+            <div class="info-box breeze-card" onclick="requestPing()" style="cursor:pointer" title="Toque para medir">
+                <span class="info-label">IP / PING</span>
+                <span class="info-value" id="ip-display" style="font-size:.72rem;display:block;margin-bottom:1px">--</span>
+                <span class="info-value" id="ping-display" style="font-size:.82rem">-- ms</span>
             </div>
         </div>
 
@@ -225,10 +226,6 @@
                 <input type="text" class="uuid-box" id="user-uuid"
                        placeholder="Cole sua CHAVE aqui"
                        oninput="onUuidInput(this.value)">
-            </div>
-            <div class="expiration-box">
-                VALIDADE: <span id="exp-date" class="expiry-value expiry-unk">--/--/----</span>
-                <span id="exp-days" style="margin-left:5px;font-size:.68rem"></span>
             </div>
         </div>
 
@@ -258,240 +255,231 @@
 </main>
 
 <script>
-    // =============================================================================
-    // ⚙️ CONFIGURAÇÃO RÁPIDA — edite apenas esta linha para trocar o fundo
-    // Cole o link do GIF/imagem desejado, ou deixe '' para usar cor sólida padrão
-    // =============================================================================
-    var DEFAULT_BG_URL = 'https://i.pinimg.com/736x/a5/fa/ca/a5faca1e1d6901254aefa8ac99e26ea5.jpg';
+// =============================================================================
+// ⚙️ CONFIGURAÇÃO RÁPIDA — edite apenas esta linha para trocar o fundo
+// Cole o link do GIF/imagem desejado, ou deixe '' para usar cor sólida padrão
+// =============================================================================
+var DEFAULT_BG_URL = 'https://i.pinimg.com/736x/a5/fa/ca/a5faca1e1d6901254aefa8ac99e26ea5.jpg';
 
-    // =============================================================================
-    // Storage
-    // =============================================================================
-    function storageSave(key, val) {
-        if (window.Android && Android.storageSave) Android.storageSave(key, val);
-        else try { localStorage.setItem(key, val); } catch(e) {}
-    }
-    function storageGet(key) {
-        if (window.Android && Android.storageGet) return Android.storageGet(key);
-        try { return localStorage.getItem(key); } catch(e) { return null; }
-    }
+// =============================================================================
+// Storage
+// =============================================================================
+function storageSave(key, val) {
+    if (window.Android && Android.storageSave) Android.storageSave(key, val);
+    else try { localStorage.setItem(key, val); } catch(e) {}
+}
+function storageGet(key) {
+    if (window.Android && Android.storageGet) return Android.storageGet(key);
+    try { return localStorage.getItem(key); } catch(e) { return null; }
+}
 
-    // =============================================================================
-    // Init
-    // =============================================================================
-    var uuidCheckTimer = null;
-    var isConnected = false;
+// =============================================================================
+// Init
+// =============================================================================
+var isConnected = false;
+var timerInterval = null;
+var connectTime = null;
 
-    window.addEventListener('load', function() {
-        // UUID salvo
-        var savedUuid = storageGet('netsmon_uuid');
-        if (savedUuid) {
-            document.getElementById('user-uuid').value = savedUuid;
-            checkExpiry(savedUuid);
-        }
+window.addEventListener('load', function() {
+    var savedUuid = storageGet('netsmon_uuid');
+    if (savedUuid) document.getElementById('user-uuid').value = savedUuid;
 
-        // Config salvo
-        var savedConfig = storageGet('netsmon_config');
-        if (savedConfig) document.getElementById('config-input').value = savedConfig;
+    var savedConfig = storageGet('netsmon_config');
+    if (savedConfig) document.getElementById('config-input').value = savedConfig;
 
-        // GIF de fundo — prioridade: salvo pelo usuário > DEFAULT_BG_URL > cor sólida
-        var savedGif = storageGet('netsmon_bg');
-        applyBackground(savedGif || DEFAULT_BG_URL);
+    var savedGif = storageGet('netsmon_bg');
+    applyBackground(savedGif || DEFAULT_BG_URL);
+    document.getElementById('gif-url-input').value = savedGif || DEFAULT_BG_URL;
 
-        // GIF input (tela de config)
-        document.getElementById('gif-url-input').value = savedGif || DEFAULT_BG_URL;
+    if (window.Android && Android.checkUpdates) Android.checkUpdates();
+});
 
-        // Busca atualizações
-        if (window.Android && Android.checkUpdates) Android.checkUpdates();
-    });
+// =============================================================================
+// Background — suporta GIF, imagem e vídeo MP4/WebM
+// =============================================================================
+function applyBackground(url) {
+    var bg = document.getElementById('bg-layer');
 
-    // =============================================================================
-    // Background — suporta GIF, imagem e vídeo MP4/WebM
-    // =============================================================================
-    function applyBackground(url) {
-        var bg = document.getElementById('bg-layer');
+    // Remove vídeo anterior se existir
+    var oldVideo = document.getElementById('bg-video');
+    if (oldVideo) oldVideo.remove();
 
-        // Remove vídeo anterior se existir
-        var oldVideo = document.getElementById('bg-video');
-        if (oldVideo) oldVideo.remove();
-
-        if (!url || url.trim() === '') {
-            bg.style.backgroundImage = 'none';
-            return;
-        }
-
-        url = url.trim();
-        var isVideo = /\.(mp4|webm|ogg)(\?.*)?$/i.test(url);
-
-        if (isVideo) {
-            // Cria elemento <video> como fundo
-            bg.style.backgroundImage = 'none';
-            var video = document.createElement('video');
-            video.id = 'bg-video';
-            video.src = url;
-            video.autoplay = true;
-            video.loop = true;
-            video.muted = true;
-            video.playsInline = true;
-            video.style.cssText = [
-                'position:fixed', 'inset:0', 'z-index:0',
-                'width:100%', 'height:100%',
-                'object-fit:cover',
-                'opacity:0.18',
-                'pointer-events:none'
-            ].join(';');
-            document.body.insertBefore(video, document.body.firstChild);
-        } else {
-            // GIF ou imagem estática
-            bg.style.backgroundImage = "url('" + url + "')";
-        }
+    if (!url || url.trim() === '') {
+        bg.style.backgroundImage = 'none';
+        return;
     }
 
-    // =============================================================================
-    // UUID input — debounce 1s para buscar validade
-    // =============================================================================
-    var uuidPattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+    url = url.trim();
+    var isVideo = /\.(mp4|webm|ogg)(\?.*)?$/i.test(url);
 
-    function onUuidInput(val) {
-        clearTimeout(uuidCheckTimer);
-        if (uuidPattern.test(val.trim())) {
-            uuidCheckTimer = setTimeout(function() { checkExpiry(val.trim()); }, 1000);
-        } else {
-            document.getElementById('exp-date').textContent = '--/--/----';
-            document.getElementById('exp-date').className = 'expiry-value expiry-unk';
-            document.getElementById('exp-days').textContent = '';
-        }
+    if (isVideo) {
+        // Cria elemento <video> como fundo
+        bg.style.backgroundImage = 'none';
+        var video = document.createElement('video');
+        video.id = 'bg-video';
+        video.src = url;
+        video.autoplay = true;
+        video.loop = true;
+        video.muted = true;
+        video.playsInline = true;
+        video.style.cssText = [
+            'position:fixed', 'inset:0', 'z-index:0',
+            'width:100%', 'height:100%',
+            'object-fit:cover',
+            'opacity:0.18',
+            'pointer-events:none'
+        ].join(';');
+        document.body.insertBefore(video, document.body.firstChild);
+    } else {
+        // GIF ou imagem estática
+        bg.style.backgroundImage = "url('" + url + "')";
+    }
+}
+
+// =============================================================================
+// Cronômetro de conexão
+// =============================================================================
+function startTimer() {
+    connectTime = Date.now();
+    timerInterval = setInterval(function() {
+        var elapsed = Math.floor((Date.now() - connectTime) / 1000);
+        var h = Math.floor(elapsed / 3600);
+        var m = Math.floor((elapsed % 3600) / 60);
+        var s = elapsed % 60;
+        document.getElementById('timer-display').textContent =
+            pad(h) + ':' + pad(m) + ':' + pad(s);
+    }, 1000);
+}
+function stopTimer() {
+    clearInterval(timerInterval);
+    timerInterval = null;
+    connectTime = null;
+    document.getElementById('timer-display').textContent = '--:--:--';
+}
+function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+// =============================================================================
+// UUID input
+// =============================================================================
+var uuidPattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+function onUuidInput(val) { /* reservado */ }
+
+// =============================================================================
+// Ping + IP (toque no card direito para medir novamente)
+// =============================================================================
+function requestPing() {
+    if (!isConnected) return;
+    document.getElementById('ping-display').textContent = 'medindo...';
+    document.getElementById('ip-display').textContent = 'buscando...';
+    if (window.Android && Android.measurePingNow) Android.measurePingNow();
+}
+
+// Callback do Android: ping (ms) e ip (string)
+window.onPingResult = function(ping, ip) {
+    document.getElementById('ping-display').textContent = ping < 0 ? 'timeout' : ping + ' ms';
+    if (ip && ip !== '') document.getElementById('ip-display').textContent = ip;
+};
+
+// =============================================================================
+// Tunnel state callback
+// =============================================================================
+window.onTunnelState = function(state) {
+    var btn = document.getElementById('btn-connection');
+    var statusLabel = document.getElementById('status-label');
+    btn.disabled = false;
+
+    if (state.error) {
+        isConnected = false;
+        stopTimer();
+        btn.innerText = 'LIGAR'; btn.classList.remove('active');
+        statusLabel.classList.remove('connected'); statusLabel.classList.add('error-text');
+        document.getElementById('ping-display').textContent = '-- ms';
+        document.getElementById('ip-display').textContent = '--';
+        var msgs = { 'import_failed':'CONFIG INVÁLIDO', 'permission_denied':'PERMISSÃO NEGADA', 'exception':'ERRO INTERNO' };
+        statusLabel.innerText = msgs[state.error] || 'ERRO';
+        if (state.error === 'import_failed') alert('Não foi possível importar o config. Verifique o JSON.');
+        return;
     }
 
-    function checkExpiry(uuid) {
-        document.getElementById('exp-date').textContent = 'consultando...';
-        document.getElementById('exp-date').className = 'expiry-value expiry-unk';
-        document.getElementById('exp-days').textContent = '';
-        if (window.Android && Android.checkExpiry) Android.checkExpiry(uuid);
-    }
-
-    // Callback do Android — resultado da validade
-    window.onExpiryResult = function(r) {
-        var el = document.getElementById('exp-date');
-        var elD = document.getElementById('exp-days');
-        el.textContent = r.date || '--/--/----';
-        if (r.days < 0) {
-            el.className = 'expiry-value expiry-unk'; elD.textContent = '';
-        } else if (r.days <= 5) {
-            el.className = 'expiry-value expiry-warn'; elD.textContent = '(' + r.days + ' dia(s) restantes)';
-        } else {
-            el.className = 'expiry-value expiry-ok'; elD.textContent = '(' + r.days + ' dias)';
-        }
-    };
-
-    // =============================================================================
-    // Ping
-    // =============================================================================
-    function requestPing() {
-        if (!isConnected) return;
+    statusLabel.classList.remove('error-text');
+    if (state.running) {
+        isConnected = true;
+        startTimer();
+        btn.innerText = 'PARAR'; btn.classList.add('active');
+        statusLabel.innerText = 'CONECTADO'; statusLabel.classList.add('connected');
         document.getElementById('ping-display').textContent = 'medindo...';
-        if (window.Android && Android.measurePingNow) Android.measurePingNow();
+        document.getElementById('ip-display').textContent = 'buscando...';
+    } else {
+        isConnected = false;
+        stopTimer();
+        btn.innerText = 'LIGAR'; btn.classList.remove('active');
+        statusLabel.innerText = ''; statusLabel.classList.remove('connected');
+        document.getElementById('ping-display').textContent = '-- ms';
+        document.getElementById('ip-display').textContent = '--';
     }
+};
 
-    window.onPingResult = function(ping) {
-        document.getElementById('ping-display').textContent = ping < 0 ? 'timeout' : ping + ' ms';
-    };
+// =============================================================================
+// Botão ligar/desligar
+// =============================================================================
+document.getElementById('btn-connection').onclick = function() {
+    var btn = document.getElementById('btn-connection');
+    var statusLabel = document.getElementById('status-label');
+    var uuid = document.getElementById('user-uuid').value.trim();
 
-    // =============================================================================
-    // Tunnel state callback
-    // =============================================================================
-    window.onTunnelState = function(state) {
-        var btn = document.getElementById('btn-connection');
-        var statusLabel = document.getElementById('status-label');
-        btn.disabled = false;
+    if (!uuid) { alert('Insira sua CHAVE DE ACESSO (UUID)!'); return; }
+    if (!uuidPattern.test(uuid)) { alert('UUID inválido.\nFormato: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'); return; }
 
-        if (state.error) {
-            isConnected = false;
-            btn.innerText = 'LIGAR'; btn.classList.remove('active');
-            statusLabel.classList.remove('connected'); statusLabel.classList.add('error-text');
-            document.getElementById('ping-display').textContent = '-- ms';
-            var msgs = { 'import_failed':'CONFIG INVÁLIDO', 'permission_denied':'PERMISSÃO NEGADA', 'exception':'ERRO INTERNO' };
-            statusLabel.innerText = msgs[state.error] || 'ERRO';
-            if (state.error === 'import_failed') alert('Não foi possível importar o config. Verifique o JSON.');
-            return;
-        }
+    storageSave('netsmon_uuid', uuid);
 
-        statusLabel.classList.remove('error-text');
-        if (state.running) {
-            isConnected = true;
-            btn.innerText = 'PARAR'; btn.classList.add('active');
-            statusLabel.innerText = 'CONECTADO'; statusLabel.classList.add('connected');
-            document.getElementById('ping-display').textContent = 'medindo...';
-        } else {
-            isConnected = false;
-            btn.innerText = 'LIGAR'; btn.classList.remove('active');
-            statusLabel.innerText = ''; statusLabel.classList.remove('connected');
-            document.getElementById('ping-display').textContent = '-- ms';
-            document.getElementById('ip-display').textContent = '--';
-        }
-    };
-
-    // =============================================================================
-    // Botão ligar/desligar
-    // =============================================================================
-    document.getElementById('btn-connection').onclick = function() {
-        var btn = document.getElementById('btn-connection');
-        var statusLabel = document.getElementById('status-label');
-        var uuid = document.getElementById('user-uuid').value.trim();
-
-        if (!uuid) { alert('Insira sua CHAVE DE ACESSO (UUID)!'); return; }
-        if (!uuidPattern.test(uuid)) { alert('UUID inválido.\nFormato: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'); return; }
-
-        storageSave('netsmon_uuid', uuid);
-
-        if (btn.innerText === 'LIGAR') {
-            btn.disabled = true;
-            statusLabel.innerText = 'CONECTANDO...';
-            statusLabel.classList.add('connected'); statusLabel.classList.remove('error-text');
-            document.getElementById('ping-display').textContent = 'aguarde...';
-            if (window.Android) Android.startTunnel(uuid);
-            else setTimeout(function() { window.onTunnelState({running:true,error:null}); setTimeout(function(){window.onPingResult(92);},1200); }, 1200);
-        } else {
-            btn.disabled = true;
-            if (window.Android) Android.stopTunnel();
-            else window.onTunnelState({running:false,error:null});
-        }
-    };
-
-    // =============================================================================
-    // Navegação
-    // =============================================================================
-    function goToConfig() {
-        window.history.pushState({page:'config'}, 'Config');
-        showPage('config-screen');
+    if (btn.innerText === 'LIGAR') {
+        btn.disabled = true;
+        statusLabel.innerText = 'CONECTANDO...';
+        statusLabel.classList.add('connected'); statusLabel.classList.remove('error-text');
+        document.getElementById('ping-display').textContent = 'aguarde...';
+        if (window.Android) Android.startTunnel(uuid);
+        else setTimeout(function() { window.onTunnelState({running:true,error:null}); setTimeout(function(){window.onPingResult(92);},1200); }, 1200);
+    } else {
+        btn.disabled = true;
+        if (window.Android) Android.stopTunnel();
+        else window.onTunnelState({running:false,error:null});
     }
-    function goBack() { window.history.back(); }
-    window.onpopstate = function() { showPage('home'); };
-    function showPage(id) {
-        document.querySelectorAll('section').forEach(function(s){ s.classList.remove('active'); });
-        document.getElementById(id).classList.add('active');
+};
+
+// =============================================================================
+// Navegação
+// =============================================================================
+function goToConfig() {
+    window.history.pushState({page:'config'}, 'Config');
+    showPage('config-screen');
+}
+function goBack() { window.history.back(); }
+window.onpopstate = function() { showPage('home'); };
+function showPage(id) {
+    document.querySelectorAll('section').forEach(function(s){ s.classList.remove('active'); });
+    document.getElementById(id).classList.add('active');
+}
+
+// =============================================================================
+// Salvar configurações avançadas
+// =============================================================================
+function saveConfig() {
+    // Config JSON/VLESS
+    var val = document.getElementById('config-input').value.trim();
+    if (val && !val.startsWith('vless://') && !val.includes('"outbounds"')) {
+        alert('Config não reconhecido.\nUse VLESS (vless://...) ou JSON completo com "outbounds".');
+        return;
     }
+    storageSave('netsmon_config', val);
 
-    // =============================================================================
-    // Salvar configurações avançadas
-    // =============================================================================
-    function saveConfig() {
-        // Config JSON/VLESS
-        var val = document.getElementById('config-input').value.trim();
-        if (val && !val.startsWith('vless://') && !val.includes('"outbounds"')) {
-            alert('Config não reconhecido.\nUse VLESS (vless://...) ou JSON completo com "outbounds".');
-            return;
-        }
-        storageSave('netsmon_config', val);
+    // GIF de fundo
+    var gifUrl = document.getElementById('gif-url-input').value.trim();
+    storageSave('netsmon_bg', gifUrl);
+    applyBackground(gifUrl);
 
-        // GIF de fundo
-        var gifUrl = document.getElementById('gif-url-input').value.trim();
-        storageSave('netsmon_bg', gifUrl);
-        applyBackground(gifUrl);
-
-        alert('Configurações salvas!');
-        goBack();
-    }
+    alert('Configurações salvas!');
+    goBack();
+}
 </script>
 </body>
 </html>
