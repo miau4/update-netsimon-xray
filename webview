@@ -262,7 +262,7 @@
     // ⚙️ CONFIGURAÇÃO RÁPIDA — edite apenas esta linha para trocar o fundo
     // Cole o link do GIF/imagem desejado, ou deixe '' para usar cor sólida padrão
     // =============================================================================
-    var DEFAULT_BG_URL = 'https://assets.pinterest.com/ext/embed.html?id=782781979011159832';
+    var DEFAULT_BG_URL = 'https://i.pinimg.com/736x/a5/fa/ca/a5faca1e1d6901254aefa8ac99e26ea5.jpg';
 
     // =============================================================================
     // Storage
