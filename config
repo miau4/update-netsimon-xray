@@ -47,7 +47,7 @@
         "security": "tls",
         "xhttpSettings": {
           "path": "/",
-          "host": "9z6izazwwmq.map.azionedge.net",
+          "host": "idglokgvu4k.map.azionedge.net",
           "mode": "auto"
         },
         "tlsSettings": {
