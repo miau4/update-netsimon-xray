@@ -51,15 +51,14 @@
 
         /* ── Header ── */
         header {
-            padding:18px 0 6px 0; flex-shrink:0;
+            padding:10px 0 4px 0; flex-shrink:0;
             display:flex; flex-direction:column; align-items:center; gap:2px;
-            position:relative;
         }
         .logo-wrap { position:relative; display:inline-block; }
         .logo-wrap img {
-            width:140px; display:block;
+            width:110px; display:block;
             animation: twinkle 3.5s ease-in-out infinite;
-            filter: drop-shadow(0 0 18px rgba(0,123,255,.7));
+            filter: drop-shadow(0 0 14px rgba(0,123,255,.7));
         }
         /* Soft shadow/glow behind logo */
         .logo-wrap::after {
@@ -75,8 +74,9 @@
         /* ── Main ── */
         main { width:100%; max-width:450px; flex-grow:1; display:flex; flex-direction:column; padding:10px 14px; }
 
-        section { display:none; width:100%; height:100%; flex-direction:column; align-items:center; justify-content:space-between; padding-bottom:14px; }
+        section { display:none; width:100%; height:100%; flex-direction:column; align-items:center; padding-bottom:14px; overflow-y:auto; }
         section.active { display:flex; animation:fadeIn .4s; }
+        #home { gap:14px; justify-content:flex-start; padding-top:4px; }
 
         /* ── Cards ── */
         .breeze-card {
@@ -97,23 +97,23 @@
         /* ── Operadora button (inactive) ── */
         .server-selector-wrapper {
             display:flex; flex-direction:column; align-items:center;
-            margin:8px 0; opacity:.45; pointer-events:none; /* inativo */
+            margin:0; opacity:.35; pointer-events:none;
         }
         .server-circle {
-            width:50px; height:50px; border-radius:50%;
+            width:42px; height:42px; border-radius:50%;
             background:#004691;
             display:flex; align-items:center; justify-content:center;
             border:2px solid var(--glow);
-            box-shadow:0 0 12px rgba(0,123,255,.4);
+            box-shadow:0 0 10px rgba(0,123,255,.4);
             overflow:hidden;
         }
         .server-circle img { width:100%; height:100%; object-fit:cover; }
 
         /* ── Connect button ── */
         #btn-connection {
-            width:155px; height:155px; border-radius:50%;
+            width:140px; height:140px; border-radius:50%;
             border:4px solid var(--glow);
-            color:#fff; font-size:1.25rem; font-weight:900; cursor:pointer;
+            color:#fff; font-size:1.15rem; font-weight:900; cursor:pointer;
             background: linear-gradient(135deg,var(--purple),#000,var(--blue),#000,var(--purple));
             background-size:300% 300%;
             animation: colorBreeze 5s linear infinite, pulseBlue 3s ease-in-out infinite;
@@ -206,16 +206,19 @@
             </div>
         </div>
 
-        <!-- Botão operadora (inativo visualmente) -->
-        <div class="server-selector-wrapper">
-            <div class="server-circle">
-                <img src="https://i.ibb.co/gLrmNT8G/imagem-2026-03-27-111301414-removebg-preview.png">
+        <!-- Botão + operadora na mesma linha -->
+        <div style="display:flex;align-items:center;justify-content:center;gap:20px;width:100%">
+            <div class="server-selector-wrapper">
+                <div class="server-circle">
+                    <img src="https://i.ibb.co/gLrmNT8G/imagem-2026-03-27-111301414-removebg-preview.png">
+                </div>
             </div>
-        </div>
-
-        <div style="text-align:center">
-            <button id="btn-connection">LIGAR</button>
-            <div id="status-label" class="status-text"></div>
+            <div style="text-align:center">
+                <button id="btn-connection">LIGAR</button>
+                <div id="status-label" class="status-text"></div>
+            </div>
+            <!-- Espaço espelho para centralizar o botão -->
+            <div style="width:42px"></div>
         </div>
 
         <div style="width:100%">
@@ -259,7 +262,7 @@
 // ⚙️ CONFIGURAÇÃO RÁPIDA — edite apenas esta linha para trocar o fundo
 // Cole o link do GIF/imagem desejado, ou deixe '' para usar cor sólida padrão
 // =============================================================================
-var DEFAULT_BG_URL = 'https://i.pinimg.com/736x/a5/fa/ca/a5faca1e1d6901254aefa8ac99e26ea5.jpg';
+var DEFAULT_BG_URL = '';
 
 // =============================================================================
 // Storage
