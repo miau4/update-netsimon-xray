@@ -17,7 +17,6 @@
             --red:    #e74c3c;
         }
 
-        /* ── Background GIF/image ── */
         #bg-layer {
             position: fixed; inset: 0; z-index: 0;
             background-size: cover; background-position: center;
@@ -28,7 +27,6 @@
 
         body { display:flex; flex-direction:column; align-items:center; position:relative; z-index:1; }
 
-        /* ── Animations ── */
         @keyframes colorBreeze {
             0%   { background-position:0% 50%; }
             50%  { background-position:100% 50%; }
@@ -49,18 +47,17 @@
             50%     { box-shadow:0 0 50px rgba(46,204,113,.95); }
         }
 
-        /* ── Header ── */
         header {
-            padding:10px 0 4px 0; flex-shrink:0;
+            padding:18px 0 6px 0; flex-shrink:0;
             display:flex; flex-direction:column; align-items:center; gap:2px;
+            position:relative;
         }
         .logo-wrap { position:relative; display:inline-block; }
         .logo-wrap img {
-            width:110px; display:block;
+            width:140px; display:block;
             animation: twinkle 3.5s ease-in-out infinite;
-            filter: drop-shadow(0 0 14px rgba(0,123,255,.7));
+            filter: drop-shadow(0 0 18px rgba(0,123,255,.7));
         }
-        /* Soft shadow/glow behind logo */
         .logo-wrap::after {
             content:'';
             position:absolute; inset:-12px;
@@ -69,16 +66,12 @@
             animation: pulseBlue 3.5s ease-in-out infinite;
             border-radius:50%;
         }
-        .app-version { font-size:.58rem; color:#444; letter-spacing:2px; text-transform:uppercase; }
 
-        /* ── Main ── */
         main { width:100%; max-width:450px; flex-grow:1; display:flex; flex-direction:column; padding:10px 14px; }
 
-        section { display:none; width:100%; height:100%; flex-direction:column; align-items:center; padding-bottom:14px; overflow-y:auto; }
+        section { display:none; width:100%; height:100%; flex-direction:column; align-items:center; justify-content:space-between; padding-bottom:14px; }
         section.active { display:flex; animation:fadeIn .4s; }
-        #home { gap:14px; justify-content:flex-start; padding-top:4px; }
 
-        /* ── Cards ── */
         .breeze-card {
             background: linear-gradient(135deg,var(--purple),#000,var(--blue),#000,var(--purple));
             background-size:300% 300%;
@@ -89,31 +82,28 @@
             text-align:center;
         }
         .info-container { display:flex; gap:10px; width:100%; }
-        /* 20% menor que antes */
         .info-box { flex:1; padding:8px 10px; }
         .info-label { font-size:.58rem; color:#aaa; text-transform:uppercase; font-weight:bold; margin-bottom:2px; display:block; letter-spacing:1px; }
         .info-value { font-size:.85rem; font-family:monospace; font-weight:bold; }
 
-        /* ── Operadora button (inactive) ── */
         .server-selector-wrapper {
             display:flex; flex-direction:column; align-items:center;
-            margin:0; opacity:.35; pointer-events:none;
+            margin:8px 0; opacity:.45; pointer-events:none;
         }
         .server-circle {
-            width:42px; height:42px; border-radius:50%;
+            width:50px; height:50px; border-radius:50%;
             background:#004691;
             display:flex; align-items:center; justify-content:center;
             border:2px solid var(--glow);
-            box-shadow:0 0 10px rgba(0,123,255,.4);
+            box-shadow:0 0 12px rgba(0,123,255,.4);
             overflow:hidden;
         }
         .server-circle img { width:100%; height:100%; object-fit:cover; }
 
-        /* ── Connect button ── */
         #btn-connection {
-            width:140px; height:140px; border-radius:50%;
+            width:155px; height:155px; border-radius:50%;
             border:4px solid var(--glow);
-            color:#fff; font-size:1.15rem; font-weight:900; cursor:pointer;
+            color:#fff; font-size:1.25rem; font-weight:900; cursor:pointer;
             background: linear-gradient(135deg,var(--purple),#000,var(--blue),#000,var(--purple));
             background-size:300% 300%;
             animation: colorBreeze 5s linear infinite, pulseBlue 3s ease-in-out infinite;
@@ -132,25 +122,19 @@
         .connected  { color:var(--green); text-shadow:0 0 10px var(--green); }
         .error-text { color:var(--red); }
 
-        /* ── UUID field ── */
         .uuid-box {
             width:100%; background:transparent; border:none;
             color:#fff; font-family:monospace; font-size:.92rem;
             text-align:center; font-weight:bold; outline:none;
         }
 
-        /* ── Expiry ── */
-        .expiration-box { font-size:.72rem; color:#888; text-align:center; margin-top:4px; }
-        .expiry-value { font-weight:bold; }
-        .expiry-ok    { color:var(--green); }
-        .expiry-warn  { color:var(--red); }
-        .expiry-unk   { color:#888; }
+        /* versão — no lugar onde ficava a validade */
+        .app-version {
+            font-size:.55rem; color:#333; letter-spacing:2px;
+            text-transform:uppercase; text-align:center;
+            margin-top:5px; display:block;
+        }
 
-        /* ── Ping clickable ── */
-        #ping-display { cursor:pointer; text-decoration:underline dotted rgba(255,255,255,.3); }
-        #ping-display:hover { color:var(--glow); }
-
-        /* ── Config screen ── */
         .config-area { width:100%; flex:1; display:flex; flex-direction:column; gap:12px; padding:10px; }
         textarea {
             height:30%;
@@ -179,14 +163,12 @@
 </head>
 <body>
 
-<!-- Background layer (GIF/image) -->
 <div id="bg-layer"></div>
 
 <header>
     <div class="logo-wrap">
         <img id="logo-img" src="https://i.ibb.co/ccC6BNw/ei-1699404424073-removebg-preview.png"/>
     </div>
-    <span class="app-version">NETSIMON v2.0</span>
 </header>
 
 <main>
@@ -194,33 +176,33 @@
     <!-- ==================== HOME ==================== -->
     <section id="home" class="active">
 
+        <!-- Cards: cronômetro à esquerda, IP/Ping à direita -->
         <div class="info-container">
             <div class="info-box breeze-card">
                 <span class="info-label">CONECTADO</span>
                 <span class="info-value" id="timer-display">--:--:--</span>
             </div>
-            <div class="info-box breeze-card" onclick="requestPing()" style="cursor:pointer" title="Toque para medir">
+            <div class="info-box breeze-card" onclick="requestPing()" style="cursor:pointer" title="Toque para medir novamente">
                 <span class="info-label">IP / PING</span>
-                <span class="info-value" id="ip-display" style="font-size:.72rem;display:block;margin-bottom:1px">--</span>
+                <span class="info-value" id="ip-display" style="font-size:.7rem;display:block;line-height:1.4">--</span>
                 <span class="info-value" id="ping-display" style="font-size:.82rem">-- ms</span>
             </div>
         </div>
 
-        <!-- Botão + operadora na mesma linha -->
-        <div style="display:flex;align-items:center;justify-content:center;gap:20px;width:100%">
-            <div class="server-selector-wrapper">
-                <div class="server-circle">
-                    <img src="https://i.ibb.co/gLrmNT8G/imagem-2026-03-27-111301414-removebg-preview.png">
-                </div>
+        <!-- Operadora (inativa) -->
+        <div class="server-selector-wrapper">
+            <div class="server-circle">
+                <img src="https://i.ibb.co/gLrmNT8G/imagem-2026-03-27-111301414-removebg-preview.png">
             </div>
-            <div style="text-align:center">
-                <button id="btn-connection">LIGAR</button>
-                <div id="status-label" class="status-text"></div>
-            </div>
-            <!-- Espaço espelho para centralizar o botão -->
-            <div style="width:42px"></div>
         </div>
 
+        <!-- Botão ligar -->
+        <div style="text-align:center">
+            <button id="btn-connection">LIGAR</button>
+            <div id="status-label" class="status-text"></div>
+        </div>
+
+        <!-- Campo UUID + versão (onde ficava a validade) -->
         <div style="width:100%">
             <span class="info-label" style="text-align:center;width:100%;display:block;margin-bottom:5px">
                 CHAVE DE ACESSO (UUID)
@@ -230,6 +212,7 @@
                        placeholder="Cole sua CHAVE aqui"
                        oninput="onUuidInput(this.value)">
             </div>
+            <span class="app-version">NETSIMON v2.0</span>
         </div>
 
     </section>
@@ -238,18 +221,15 @@
     <section id="config-screen">
         <h3 style="margin-top:10px;font-size:.95rem;letter-spacing:1px">CONFIGURAÇÕES AVANÇADAS</h3>
         <div class="config-area">
-
             <div>
                 <div class="field-label">Config JSON ou VLESS personalizado (opcional)</div>
                 <textarea id="config-input" placeholder="Deixe vazio para usar a config padrão do sistema."></textarea>
             </div>
-
             <div>
                 <div class="field-label">Link do GIF / imagem / vídeo de fundo (opcional — .gif, .jpg, .mp4, .webm)</div>
                 <input type="url" class="gif-field" id="gif-url-input"
                        placeholder="https://exemplo.com/animacao.gif ou video.mp4">
             </div>
-
             <button class="btn-save" onclick="saveConfig()">SALVAR E VOLTAR</button>
             <button class="btn-cancel" onclick="goBack()">CANCELAR</button>
         </div>
@@ -259,8 +239,8 @@
 
 <script>
 // =============================================================================
-// ⚙️ CONFIGURAÇÃO RÁPIDA — edite apenas esta linha para trocar o fundo
-// Cole o link do GIF/imagem desejado, ou deixe '' para usar cor sólida padrão
+// ⚙️ CONFIGURAÇÃO RÁPIDA — troque o link abaixo para mudar o fundo
+// Suporta .gif, .jpg, .png, .mp4, .webm — deixe '' para fundo sólido preto
 // =============================================================================
 var DEFAULT_BG_URL = '';
 
@@ -282,6 +262,7 @@ function storageGet(key) {
 var isConnected = false;
 var timerInterval = null;
 var connectTime = null;
+var uuidPattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
 window.addEventListener('load', function() {
     var savedUuid = storageGet('netsmon_uuid');
@@ -298,77 +279,50 @@ window.addEventListener('load', function() {
 });
 
 // =============================================================================
-// Background — suporta GIF, imagem e vídeo MP4/WebM
+// Background — GIF, imagem ou vídeo MP4/WebM
 // =============================================================================
 function applyBackground(url) {
     var bg = document.getElementById('bg-layer');
-
-    // Remove vídeo anterior se existir
     var oldVideo = document.getElementById('bg-video');
     if (oldVideo) oldVideo.remove();
-
-    if (!url || url.trim() === '') {
-        bg.style.backgroundImage = 'none';
-        return;
-    }
-
+    if (!url || url.trim() === '') { bg.style.backgroundImage = 'none'; return; }
     url = url.trim();
-    var isVideo = /\.(mp4|webm|ogg)(\?.*)?$/i.test(url);
-
-    if (isVideo) {
-        // Cria elemento <video> como fundo
+    if (/\.(mp4|webm|ogg)(\?.*)?$/i.test(url)) {
         bg.style.backgroundImage = 'none';
-        var video = document.createElement('video');
-        video.id = 'bg-video';
-        video.src = url;
-        video.autoplay = true;
-        video.loop = true;
-        video.muted = true;
-        video.playsInline = true;
-        video.style.cssText = [
-            'position:fixed', 'inset:0', 'z-index:0',
-            'width:100%', 'height:100%',
-            'object-fit:cover',
-            'opacity:0.18',
-            'pointer-events:none'
-        ].join(';');
-        document.body.insertBefore(video, document.body.firstChild);
+        var v = document.createElement('video');
+        v.id = 'bg-video'; v.src = url; v.autoplay = true; v.loop = true;
+        v.muted = true; v.playsInline = true;
+        v.style.cssText = 'position:fixed;inset:0;z-index:0;width:100%;height:100%;object-fit:cover;opacity:0.18;pointer-events:none';
+        document.body.insertBefore(v, document.body.firstChild);
     } else {
-        // GIF ou imagem estática
         bg.style.backgroundImage = "url('" + url + "')";
     }
 }
 
 // =============================================================================
-// Cronômetro de conexão
+// UUID input
+// =============================================================================
+function onUuidInput(val) { /* reservado para uso futuro */ }
+
+// =============================================================================
+// Cronômetro
 // =============================================================================
 function startTimer() {
     connectTime = Date.now();
     timerInterval = setInterval(function() {
-        var elapsed = Math.floor((Date.now() - connectTime) / 1000);
-        var h = Math.floor(elapsed / 3600);
-        var m = Math.floor((elapsed % 3600) / 60);
-        var s = elapsed % 60;
-        document.getElementById('timer-display').textContent =
-            pad(h) + ':' + pad(m) + ':' + pad(s);
+        var e = Math.floor((Date.now() - connectTime) / 1000);
+        var h = Math.floor(e / 3600), m = Math.floor((e % 3600) / 60), s = e % 60;
+        document.getElementById('timer-display').textContent = pad(h)+':'+pad(m)+':'+pad(s);
     }, 1000);
 }
 function stopTimer() {
-    clearInterval(timerInterval);
-    timerInterval = null;
-    connectTime = null;
+    clearInterval(timerInterval); timerInterval = null; connectTime = null;
     document.getElementById('timer-display').textContent = '--:--:--';
 }
-function pad(n) { return n < 10 ? '0' + n : '' + n; }
+function pad(n) { return n < 10 ? '0'+n : ''+n; }
 
 // =============================================================================
-// UUID input
-// =============================================================================
-var uuidPattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
-function onUuidInput(val) { /* reservado */ }
-
-// =============================================================================
-// Ping + IP (toque no card direito para medir novamente)
+// Ping + IP (toque no card direito para refazer)
 // =============================================================================
 function requestPing() {
     if (!isConnected) return;
@@ -377,46 +331,42 @@ function requestPing() {
     if (window.Android && Android.measurePingNow) Android.measurePingNow();
 }
 
-// Callback do Android: ping (ms) e ip (string)
 window.onPingResult = function(ping, ip) {
     document.getElementById('ping-display').textContent = ping < 0 ? 'timeout' : ping + ' ms';
     if (ip && ip !== '') document.getElementById('ip-display').textContent = ip;
 };
 
 // =============================================================================
-// Tunnel state callback
+// Tunnel state
 // =============================================================================
 window.onTunnelState = function(state) {
     var btn = document.getElementById('btn-connection');
-    var statusLabel = document.getElementById('status-label');
+    var sl  = document.getElementById('status-label');
     btn.disabled = false;
 
     if (state.error) {
-        isConnected = false;
-        stopTimer();
+        isConnected = false; stopTimer();
         btn.innerText = 'LIGAR'; btn.classList.remove('active');
-        statusLabel.classList.remove('connected'); statusLabel.classList.add('error-text');
+        sl.classList.remove('connected'); sl.classList.add('error-text');
         document.getElementById('ping-display').textContent = '-- ms';
         document.getElementById('ip-display').textContent = '--';
-        var msgs = { 'import_failed':'CONFIG INVÁLIDO', 'permission_denied':'PERMISSÃO NEGADA', 'exception':'ERRO INTERNO' };
-        statusLabel.innerText = msgs[state.error] || 'ERRO';
+        var msgs = { import_failed:'CONFIG INVÁLIDO', permission_denied:'PERMISSÃO NEGADA', exception:'ERRO INTERNO' };
+        sl.innerText = msgs[state.error] || 'ERRO';
         if (state.error === 'import_failed') alert('Não foi possível importar o config. Verifique o JSON.');
         return;
     }
 
-    statusLabel.classList.remove('error-text');
+    sl.classList.remove('error-text');
     if (state.running) {
-        isConnected = true;
-        startTimer();
+        isConnected = true; startTimer();
         btn.innerText = 'PARAR'; btn.classList.add('active');
-        statusLabel.innerText = 'CONECTADO'; statusLabel.classList.add('connected');
+        sl.innerText = 'CONECTADO'; sl.classList.add('connected');
         document.getElementById('ping-display').textContent = 'medindo...';
         document.getElementById('ip-display').textContent = 'buscando...';
     } else {
-        isConnected = false;
-        stopTimer();
+        isConnected = false; stopTimer();
         btn.innerText = 'LIGAR'; btn.classList.remove('active');
-        statusLabel.innerText = ''; statusLabel.classList.remove('connected');
+        sl.innerText = ''; sl.classList.remove('connected');
         document.getElementById('ping-display').textContent = '-- ms';
         document.getElementById('ip-display').textContent = '--';
     }
@@ -426,8 +376,8 @@ window.onTunnelState = function(state) {
 // Botão ligar/desligar
 // =============================================================================
 document.getElementById('btn-connection').onclick = function() {
-    var btn = document.getElementById('btn-connection');
-    var statusLabel = document.getElementById('status-label');
+    var btn  = document.getElementById('btn-connection');
+    var sl   = document.getElementById('status-label');
     var uuid = document.getElementById('user-uuid').value.trim();
 
     if (!uuid) { alert('Insira sua CHAVE DE ACESSO (UUID)!'); return; }
@@ -437,15 +387,22 @@ document.getElementById('btn-connection').onclick = function() {
 
     if (btn.innerText === 'LIGAR') {
         btn.disabled = true;
-        statusLabel.innerText = 'CONECTANDO...';
-        statusLabel.classList.add('connected'); statusLabel.classList.remove('error-text');
+        sl.innerText = 'CONECTANDO...';
+        sl.classList.add('connected'); sl.classList.remove('error-text');
         document.getElementById('ping-display').textContent = 'aguarde...';
-        if (window.Android) Android.startTunnel(uuid);
-        else setTimeout(function() { window.onTunnelState({running:true,error:null}); setTimeout(function(){window.onPingResult(92);},1200); }, 1200);
+        if (window.Android) {
+            Android.startTunnel(uuid);
+        } else {
+            // Simulação para teste no browser
+            setTimeout(function() {
+                window.onTunnelState({running:true, error:null});
+                setTimeout(function(){ window.onPingResult(87, '187.23.10.42'); }, 1500);
+            }, 1200);
+        }
     } else {
         btn.disabled = true;
         if (window.Android) Android.stopTunnel();
-        else window.onTunnelState({running:false,error:null});
+        else window.onTunnelState({running:false, error:null});
     }
 };
 
@@ -467,7 +424,6 @@ function showPage(id) {
 // Salvar configurações avançadas
 // =============================================================================
 function saveConfig() {
-    // Config JSON/VLESS
     var val = document.getElementById('config-input').value.trim();
     if (val && !val.startsWith('vless://') && !val.includes('"outbounds"')) {
         alert('Config não reconhecido.\nUse VLESS (vless://...) ou JSON completo com "outbounds".');
@@ -475,7 +431,6 @@ function saveConfig() {
     }
     storageSave('netsmon_config', val);
 
-    // GIF de fundo
     var gifUrl = document.getElementById('gif-url-input').value.trim();
     storageSave('netsmon_bg', gifUrl);
     applyBackground(gifUrl);
