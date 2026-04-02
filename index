@@ -6,9 +6,7 @@
     <title>NETSIMON</title>
     <style>
         * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI',sans-serif; }
-
         html, body { height:100%; overflow:hidden; background:#000; color:#fff; }
-
         :root {
             --purple: #6F00FF;
             --blue:   #001F3F;
@@ -16,15 +14,11 @@
             --green:  #2ecc71;
             --red:    #e74c3c;
         }
-
         #bg-layer {
-            position: fixed; inset: 0; z-index: 0;
-            background-size: cover; background-position: center;
-            background-repeat: no-repeat;
-            opacity: 0.18;
-            pointer-events: none;
+            position:fixed; inset:0; z-index:0;
+            background-size:cover; background-position:center;
+            background-repeat:no-repeat; opacity:0.18; pointer-events:none;
         }
-
         body { display:flex; flex-direction:column; align-items:center; position:relative; z-index:1; }
 
         @keyframes colorBreeze {
@@ -32,7 +26,7 @@
             50%  { background-position:100% 50%; }
             100% { background-position:0% 50%; }
         }
-        @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+        @keyframes fadeIn  { from{opacity:0} to{opacity:1} }
         @keyframes twinkle {
             0%,100% { opacity:1; filter:brightness(1) drop-shadow(0 0 6px #007BFF); }
             40%     { opacity:.6; filter:brightness(.7) drop-shadow(0 0 2px #007BFF); }
@@ -46,79 +40,84 @@
             0%,100% { box-shadow:0 0 28px rgba(46,204,113,.6); }
             50%     { box-shadow:0 0 50px rgba(46,204,113,.95); }
         }
+        @keyframes slideUp {
+            from { transform:translateY(100%); opacity:0; }
+            to   { transform:translateY(0);    opacity:1; }
+        }
+        @keyframes popIn {
+            from { transform:translate(-50%,-50%) scale(.85); opacity:0; }
+            to   { transform:translate(-50%,-50%) scale(1);   opacity:1; }
+        }
+
+        /* ── Toast ── */
+        #update-toast {
+            position:fixed; bottom:28px; left:50%; transform:translateX(-50%);
+            background:rgba(15,15,15,.93); border:1px solid #2ecc71; color:#2ecc71;
+            font-size:.72rem; font-weight:700; letter-spacing:1.5px; text-transform:uppercase;
+            padding:8px 22px; border-radius:30px; white-space:nowrap; pointer-events:none;
+            z-index:9999; opacity:0; box-shadow:0 0 14px rgba(46,204,113,.3); transition:opacity .45s ease;
+        }
+        #update-toast.show { opacity:1; }
 
         header {
             padding:18px 0 6px 0; flex-shrink:0;
             display:flex; flex-direction:column; align-items:center; gap:2px;
-            position:relative;
         }
         .logo-wrap { position:relative; display:inline-block; }
         .logo-wrap img {
             width:140px; display:block;
-            animation: twinkle 3.5s ease-in-out infinite;
-            filter: drop-shadow(0 0 18px rgba(0,123,255,.7));
+            animation:twinkle 3.5s ease-in-out infinite;
+            filter:drop-shadow(0 0 18px rgba(0,123,255,.7));
         }
         .logo-wrap::after {
-            content:'';
-            position:absolute; inset:-12px;
-            background: radial-gradient(ellipse at center, rgba(0,123,255,.35) 0%, transparent 70%);
-            pointer-events:none;
-            animation: pulseBlue 3.5s ease-in-out infinite;
-            border-radius:50%;
+            content:''; position:absolute; inset:-12px;
+            background:radial-gradient(ellipse at center, rgba(0,123,255,.35) 0%, transparent 70%);
+            pointer-events:none; animation:pulseBlue 3.5s ease-in-out infinite; border-radius:50%;
         }
 
         main { width:100%; max-width:450px; flex-grow:1; display:flex; flex-direction:column; padding:10px 14px; }
-
         section { display:none; width:100%; height:100%; flex-direction:column; align-items:center; justify-content:space-between; padding-bottom:14px; }
         section.active { display:flex; animation:fadeIn .4s; }
 
         .breeze-card {
-            background: linear-gradient(135deg,var(--purple),#000,var(--blue),#000,var(--purple));
-            background-size:300% 300%;
-            animation: colorBreeze 8s linear infinite;
-            border:1px solid var(--glow);
-            box-shadow:0 0 12px rgba(0,123,255,.3);
-            border-radius:10px;
-            text-align:center;
+            background:linear-gradient(135deg,var(--purple),#000,var(--blue),#000,var(--purple));
+            background-size:300% 300%; animation:colorBreeze 8s linear infinite;
+            border:1px solid var(--glow); box-shadow:0 0 12px rgba(0,123,255,.3);
+            border-radius:10px; text-align:center;
         }
         .info-container { display:flex; gap:10px; width:100%; }
         .info-box { flex:1; padding:8px 10px; }
         .info-label { font-size:.58rem; color:#aaa; text-transform:uppercase; font-weight:bold; margin-bottom:2px; display:block; letter-spacing:1px; }
         .info-value { font-size:.85rem; font-family:monospace; font-weight:bold; }
 
-        .server-selector-wrapper {
-            display:flex; flex-direction:column; align-items:center;
-            margin:8px 0; opacity:.45; pointer-events:none;
+        /* ── Botão operadora ── */
+        .operator-btn {
+            display:flex; flex-direction:column; align-items:center; gap:6px;
+            cursor:pointer; margin:8px 0; background:none; border:none; color:#fff;
         }
-        .server-circle {
-            width:50px; height:50px; border-radius:50%;
-            background:#004691;
+        .operator-circle {
+            width:56px; height:56px; border-radius:50%; background:#0a1628;
             display:flex; align-items:center; justify-content:center;
-            border:2px solid var(--glow);
-            box-shadow:0 0 12px rgba(0,123,255,.4);
-            overflow:hidden;
+            border:2px solid var(--glow); box-shadow:0 0 14px rgba(0,123,255,.5);
+            overflow:hidden; transition:box-shadow .2s;
         }
-        .server-circle img { width:100%; height:100%; object-fit:cover; }
+        .operator-circle:active { box-shadow:0 0 24px rgba(0,123,255,.9); }
+        .operator-circle img { width:100%; height:100%; object-fit:cover; }
+        .operator-name { font-size:.62rem; color:#aaa; text-transform:uppercase; letter-spacing:1px; }
 
+        /* ── Botão principal ── */
         #btn-connection {
             width:155px; height:155px; border-radius:50%;
-            border:4px solid var(--glow);
-            color:#fff; font-size:1.25rem; font-weight:900; cursor:pointer;
-            background: linear-gradient(135deg,var(--purple),#000,var(--blue),#000,var(--purple));
+            border:4px solid var(--glow); color:#fff; font-size:1.25rem; font-weight:900; cursor:pointer;
+            background:linear-gradient(135deg,var(--purple),#000,var(--blue),#000,var(--purple));
             background-size:300% 300%;
-            animation: colorBreeze 5s linear infinite, pulseBlue 3s ease-in-out infinite;
+            animation:colorBreeze 5s linear infinite, pulseBlue 3s ease-in-out infinite;
             letter-spacing:2px; transition:border-color .3s;
         }
-        #btn-connection.active {
-            border-color:var(--green);
-            animation: colorBreeze 5s linear infinite, pulseGreen 3s ease-in-out infinite;
-        }
+        #btn-connection.active { border-color:var(--green); animation:colorBreeze 5s linear infinite, pulseGreen 3s ease-in-out infinite; }
         #btn-connection:disabled { opacity:.5; cursor:not-allowed; }
 
-        .status-text {
-            font-size:.95rem; font-weight:900; margin-top:7px;
-            height:20px; text-transform:uppercase; letter-spacing:1px;
-        }
+        .status-text { font-size:.95rem; font-weight:900; margin-top:7px; height:20px; text-transform:uppercase; letter-spacing:1px; }
         .connected  { color:var(--green); text-shadow:0 0 10px var(--green); }
         .error-text { color:var(--red); }
 
@@ -127,90 +126,210 @@
             color:#fff; font-family:monospace; font-size:.92rem;
             text-align:center; font-weight:bold; outline:none;
         }
+        .app-version { font-size:.55rem; color:#333; letter-spacing:2px; text-transform:uppercase; text-align:center; margin-top:5px; display:block; }
 
-        /* versão — no lugar onde ficava a validade */
-        .app-version {
-            font-size:.55rem; color:#333; letter-spacing:2px;
-            text-transform:uppercase; text-align:center;
-            margin-top:5px; display:block;
-        }
-
+        /* ── Config screen ── */
         .config-area { width:100%; flex:1; display:flex; flex-direction:column; gap:12px; padding:10px; }
-        textarea {
-            height:30%;
-            background:#0a0a0a; border:1px solid #333;
-            color:#2ecc71; padding:12px;
-            font-family:monospace; font-size:.8rem;
-            border-radius:10px; resize:none; outline:none;
-        }
-        .gif-field {
-            background:#0a0a0a; border:1px solid #333; color:#aaa;
-            padding:10px 12px; font-family:monospace; font-size:.78rem;
-            border-radius:10px; outline:none; width:100%;
-        }
+        textarea { height:30%; background:#0a0a0a; border:1px solid #333; color:#2ecc71; padding:12px; font-family:monospace; font-size:.8rem; border-radius:10px; resize:none; outline:none; }
+        .gif-field { background:#0a0a0a; border:1px solid #333; color:#aaa; padding:10px 12px; font-family:monospace; font-size:.78rem; border-radius:10px; outline:none; width:100%; }
         .gif-field::placeholder { color:#444; }
-        .btn-save {
-            background:var(--glow); color:#fff; border:none;
-            padding:13px; border-radius:10px; font-weight:bold;
-            cursor:pointer; font-size:.9rem;
-        }
-        .btn-cancel {
-            background:transparent; color:#555; border:none;
-            padding:13px; font-weight:bold; cursor:pointer; margin-bottom:12px;
-        }
+        .btn-save { background:var(--glow); color:#fff; border:none; padding:13px; border-radius:10px; font-weight:bold; cursor:pointer; font-size:.9rem; }
+        .btn-cancel { background:transparent; color:#555; border:none; padding:13px; font-weight:bold; cursor:pointer; margin-bottom:12px; }
         .field-label { font-size:.6rem; color:#666; text-transform:uppercase; letter-spacing:1px; margin-bottom:2px; }
+
+        #log-btn {
+            position:fixed; bottom:18px; left:18px; z-index:500;
+            width:36px; height:36px; border-radius:50%;
+            background:rgba(10,10,30,.85);
+            border:1px solid #1a2540;
+            color:#334; font-size:.9rem;
+            display:flex; align-items:center; justify-content:center;
+            cursor:pointer; transition:all .2s;
+            box-shadow:0 2px 8px rgba(0,0,0,.5);
+        }
+        #log-btn:hover, #log-btn:active {
+            border-color:var(--glow); color:var(--glow);
+            box-shadow:0 0 12px rgba(0,123,255,.4);
+        }
+
+        #ssh-cred-btn {
+            position:fixed; bottom:18px; right:18px; z-index:500;
+            width:36px; height:36px; border-radius:50%;
+            background:rgba(10,10,30,.85);
+            border:1px solid #1a2540;
+            color:#334; font-size:.9rem;
+            display:flex; align-items:center; justify-content:center;
+            cursor:pointer; transition:all .2s;
+            box-shadow:0 2px 8px rgba(0,0,0,.5);
+        }
+        #ssh-cred-btn:hover, #ssh-cred-btn:active {
+            border-color:var(--glow); color:var(--glow);
+            box-shadow:0 0 12px rgba(0,123,255,.4);
+        }
+        #ssh-cred-btn.has-creds::after {
+            content:''; position:absolute; top:2px; right:2px;
+            width:8px; height:8px; border-radius:50%;
+            background:var(--green); border:1px solid #000;
+        }
+
+        .bottom-modal {
+            display:none; position:fixed; inset:0; z-index:1000;
+            background:rgba(0,0,0,.75); align-items:flex-end;
+        }
+        .bottom-modal.open { display:flex; animation:fadeIn .2s; }
+        .modal-sheet {
+            width:100%; max-width:450px; margin:0 auto;
+            background:#0a0a18; border-top:1px solid #222;
+            border-radius:18px 18px 0 0; padding:0 0 24px;
+            animation:slideUp .3s ease; max-height:80vh; overflow-y:auto;
+        }
+        .modal-handle { width:40px; height:4px; background:#333; border-radius:2px; margin:12px auto 16px; }
+        .modal-title { text-align:center; font-size:.7rem; color:#555; text-transform:uppercase; letter-spacing:2px; margin-bottom:16px; }
+
+        .cat-tabs { display:flex; gap:8px; padding:0 16px; overflow-x:auto; scrollbar-width:none; margin-bottom:14px; }
+        .cat-tabs::-webkit-scrollbar { display:none; }
+        .cat-tab {
+            flex-shrink:0; padding:6px 16px; border:1px solid #333; border-radius:20px;
+            background:transparent; color:#777; font-size:.68rem; font-weight:700;
+            text-transform:uppercase; letter-spacing:1px; cursor:pointer; transition:all .2s;
+        }
+        .cat-tab.active { border-color:var(--glow); color:#fff; background:rgba(0,123,255,.15); box-shadow:0 0 8px rgba(0,123,255,.3); }
+
+        .op-list { padding:0 12px; display:flex; flex-direction:column; gap:8px; }
+        .op-item {
+            display:flex; align-items:center; gap:12px; padding:12px 14px;
+            background:#0f1626; border:1px solid #1a2540; border-radius:12px;
+            cursor:pointer; transition:all .2s; position:relative;
+        }
+        .op-item:active { border-color:var(--glow); background:#0a1a35; }
+        .op-item.selected { border-color:var(--green); background:rgba(46,204,113,.07); }
+        .op-icon { width:40px; height:40px; border-radius:50%; object-fit:cover; border:1px solid #222; flex-shrink:0; background:#0a0a0a; }
+        .op-info { flex:1; min-width:0; }
+        .op-name { font-size:.82rem; font-weight:700; color:#eee; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .op-desc { font-size:.65rem; color:#555; margin-top:2px; }
+        .op-mode-badge { font-size:.55rem; font-weight:700; letter-spacing:1px; padding:3px 8px; border-radius:8px; text-transform:uppercase; flex-shrink:0; }
+        .badge-ssh   { background:rgba(0,123,255,.2); color:#4a9eff; border:1px solid #1a4a80; }
+        .badge-v2ray { background:rgba(111,0,255,.2); color:#a855f7; border:1px solid #4a1a80; }
+        .badge-ssl   { background:rgba(46,204,113,.2); color:#2ecc71; border:1px solid #1a5035; }
+        .badge-other { background:rgba(255,255,255,.1); color:#aaa; border:1px solid #333; }
+        .op-check { width:18px; height:18px; border-radius:50%; border:2px solid #333; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:.65rem; transition:all .2s; }
+        .op-item.selected .op-check { background:var(--green); border-color:var(--green); }
+        .op-item.selected .op-check::after { content:'✓'; color:#000; font-weight:900; }
+
+        .modal-close-btn { display:block; width:calc(100% - 32px); margin:16px 16px 0; padding:14px; background:transparent; border:1px solid #222; color:#555; border-radius:12px; font-size:.85rem; cursor:pointer; }
+
+        #ssh-popup-overlay {
+            display:none; position:fixed; inset:0; z-index:2000;
+            background:rgba(0,0,0,.85); align-items:center; justify-content:center;
+        }
+        #ssh-popup-overlay.open { display:flex; }
+
+        .ssh-popup {
+            position:fixed; top:50%; left:50%;
+            transform:translate(-50%,-50%);
+            width:calc(100% - 40px); max-width:360px;
+            background:#0a0a1a;
+            border:1px solid #1a2a50;
+            border-radius:18px;
+            padding:24px 20px 20px;
+            animation:popIn .25s ease;
+            z-index:2001;
+        }
+        .ssh-popup-icon { width:48px; height:48px; border-radius:50%; background:rgba(0,123,255,.15); border:1px solid #1a4a80; display:flex; align-items:center; justify-content:center; font-size:1.4rem; margin:0 auto 14px; }
+        .ssh-popup h3 { text-align:center; font-size:.9rem; font-weight:700; letter-spacing:1px; margin-bottom:4px; }
+        .ssh-popup .ssh-popup-sub { text-align:center; font-size:.68rem; color:#555; margin-bottom:20px; line-height:1.5; }
+        .ssh-field-group { display:flex; flex-direction:column; gap:10px; margin-bottom:18px; }
+        .ssh-field-wrap { position:relative; }
+        .ssh-field-label { font-size:.58rem; color:#555; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px; display:block; }
+        .ssh-field { width:100%; background:#050510; border:1px solid #1a2540; color:#fff; padding:12px 14px; border-radius:10px; font-family:monospace; font-size:.88rem; outline:none; transition:border-color .2s; }
+        .ssh-field:focus { border-color:var(--glow); }
+        .ssh-field::placeholder { color:#2a3040; }
+        .pwd-toggle { position:absolute; right:12px; top:50%; transform:translateY(-50%); background:none; border:none; color:#444; cursor:pointer; font-size:.8rem; padding:4px; }
+        .pwd-toggle:hover { color:#888; }
+        .ssh-popup-btns { display:flex; gap:10px; }
+        .ssh-btn-confirm { flex:1; background:var(--glow); color:#fff; border:none; padding:13px; border-radius:10px; font-weight:700; font-size:.88rem; cursor:pointer; letter-spacing:.5px; }
+        .ssh-btn-confirm:active { opacity:.8; }
+        .ssh-btn-cancel { flex:0 0 auto; background:transparent; color:#444; border:1px solid #1a2540; padding:13px 18px; border-radius:10px; font-size:.88rem; cursor:pointer; }
+        .ssh-error-msg { display:none; font-size:.68rem; color:var(--red); text-align:center; margin-top:-10px; margin-bottom:10px; }
+        .ssh-error-msg.show { display:block; }
+        .ssh-saved-info { display:flex; align-items:center; gap:8px; background:rgba(46,204,113,.08); border:1px solid rgba(46,204,113,.2); border-radius:8px; padding:8px 12px; margin-bottom:16px; font-size:.68rem; color:#2ecc71; }
+
+        #log-modal {
+            display:none; position:fixed; inset:0; z-index:3000;
+            background:rgba(0,0,0,.92); flex-direction:column;
+        }
+        #log-modal.open { display:flex; animation:fadeIn .2s; }
+        .log-header {
+            display:flex; align-items:center; justify-content:space-between;
+            padding:14px 16px 10px; border-bottom:1px solid #1a2540; flex-shrink:0;
+        }
+        .log-title { font-size:.75rem; font-weight:700; color:#4a9eff; text-transform:uppercase; letter-spacing:2px; }
+        .log-actions { display:flex; gap:8px; align-items:center; }
+        .log-btn-small {
+            background:transparent; border:1px solid #1a2540; color:#555;
+            padding:5px 12px; border-radius:8px; font-size:.68rem; cursor:pointer; font-weight:700;
+        }
+        .log-btn-small:active { border-color:var(--glow); color:var(--glow); }
+        #log-close-btn { background:transparent; border:none; color:#555; font-size:1.1rem; cursor:pointer; padding:4px 8px; }
+        #log-close-btn:active { color:#fff; }
+        #log-content {
+            flex:1; overflow-y:auto; padding:12px 14px;
+            font-family:monospace; font-size:.65rem; line-height:1.6;
+            color:#2ecc71; white-space:pre-wrap; word-break:break-all;
+        }
+        #log-content .log-error { color:var(--red); }
+        #log-content .log-warn  { color:#f39c12; }
+        #log-content .log-info  { color:#4a9eff; }
     </style>
 </head>
 <body>
 
+<div id="update-toast">✓ aplicativo atualizado</div>
 <div id="bg-layer"></div>
 
 <header>
     <div class="logo-wrap">
-        <img id="logo-img" src="https://i.ibb.co/ccC6BNw/ei-1699404424073-removebg-preview.png"/>
+        <img id="logo-img"
+             src="file:///android_asset/logo.png"
+             onerror="this.onerror=null;this.src='https://i.ibb.co/ccC6BNw/ei-1699404424073-removebg-preview.png'"/>
     </div>
 </header>
 
 <main>
-
     <!-- ==================== HOME ==================== -->
     <section id="home" class="active">
 
-        <!-- Cards: cronômetro à esquerda, IP/Ping à direita -->
         <div class="info-container">
             <div class="info-box breeze-card">
                 <span class="info-label">CONECTADO</span>
                 <span class="info-value" id="timer-display">--:--:--</span>
             </div>
-            <div class="info-box breeze-card" onclick="requestPing()" style="cursor:pointer" title="Toque para medir novamente">
+            <div class="info-box breeze-card" onclick="requestPing()" style="cursor:pointer">
                 <span class="info-label">IP / PING</span>
                 <span class="info-value" id="ip-display" style="font-size:.7rem;display:block;line-height:1.4">--</span>
                 <span class="info-value" id="ping-display" style="font-size:.82rem">-- ms</span>
             </div>
         </div>
 
-        <!-- Operadora (inativa) -->
-        <div class="server-selector-wrapper">
-            <div class="server-circle">
-                <img src="https://i.ibb.co/gLrmNT8G/imagem-2026-03-27-111301414-removebg-preview.png">
+        <!-- Botão operadora -->
+        <button class="operator-btn" id="operator-btn" onclick="openOperatorModal()">
+            <div class="operator-circle">
+                <img id="op-circle-img"
+                     src="file:///android_asset/operadora.png"
+                     onerror="this.onerror=null;this.src='https://i.ibb.co/gLrmNT8G/imagem-2026-03-27-111301414-removebg-preview.png'"/>
             </div>
-        </div>
+            <span class="operator-name" id="op-selected-label">SELECIONAR</span>
+        </button>
 
-        <!-- Botão ligar -->
         <div style="text-align:center">
             <button id="btn-connection">LIGAR</button>
             <div id="status-label" class="status-text"></div>
         </div>
 
-        <!-- Campo UUID + versão (onde ficava a validade) -->
         <div style="width:100%">
-            <span class="info-label" style="text-align:center;width:100%;display:block;margin-bottom:5px">
-                CHAVE DE ACESSO (UUID)
-            </span>
+            <span class="info-label" style="text-align:center;width:100%;display:block;margin-bottom:5px">CHAVE DE ACESSO (UUID)</span>
             <div class="breeze-card" style="padding:14px">
-                <input type="text" class="uuid-box" id="user-uuid"
-                       placeholder="Cole sua CHAVE aqui"
-                       oninput="onUuidInput(this.value)">
+                <input type="text" class="uuid-box" id="user-uuid" placeholder="Cole sua CHAVE aqui">
             </div>
             <span class="app-version">NETSIMON v2.0</span>
         </div>
@@ -226,218 +345,608 @@
                 <textarea id="config-input" placeholder="Deixe vazio para usar a config padrão do sistema."></textarea>
             </div>
             <div>
-                <div class="field-label">Link do GIF / imagem / vídeo de fundo (opcional — .gif, .jpg, .mp4, .webm)</div>
-                <input type="url" class="gif-field" id="gif-url-input"
-                       placeholder="https://exemplo.com/animacao.gif ou video.mp4">
+                <div class="field-label">Link do GIF / imagem / vídeo de fundo (opcional — .gif, .jpg, .png, .mp4, .webm)</div>
+                <input type="url" class="gif-field" id="gif-url-input" placeholder="https://exemplo.com/animacao.gif ou video.mp4">
             </div>
             <button class="btn-save" onclick="saveConfig()">SALVAR E VOLTAR</button>
             <button class="btn-cancel" onclick="goBack()">CANCELAR</button>
         </div>
     </section>
-
 </main>
 
+<!-- ── Botão de LOG (canto inferior ESQUERDO) ── -->
+<button id="log-btn" onclick="openLogModal()" title="Log do app">📋</button>
+
+<!-- ── Botão SSH (canto inferior DIREITO) ── -->
+<button id="ssh-cred-btn" onclick="openSshPopup(true)" title="Credenciais SSH">🔑</button>
+
+<!-- ================================================================
+     MODAL DE OPERADORAS
+     ================================================================ -->
+<div id="operator-modal" class="bottom-modal" onclick="handleModalBackdrop(event)">
+    <div class="modal-sheet">
+        <div class="modal-handle"></div>
+        <div class="modal-title">Selecione sua operadora</div>
+        <div class="cat-tabs" id="cat-tabs"></div>
+        <div class="op-list" id="op-list">
+            <div style="text-align:center;padding:24px;color:#333;font-size:.8rem">Carregando operadoras...</div>
+        </div>
+        <button class="modal-close-btn" onclick="closeOperatorModal()">FECHAR</button>
+    </div>
+</div>
+
+<!-- ================================================================
+     POPUP DE CREDENCIAIS SSH
+     ================================================================ -->
+<div id="ssh-popup-overlay" onclick="handleSshOverlayClick(event)">
+    <div class="ssh-popup" id="ssh-popup">
+        <div class="ssh-popup-icon">🔐</div>
+        <h3 id="ssh-popup-title">ACESSO SSH</h3>
+        <p class="ssh-popup-sub" id="ssh-popup-sub">
+            Insira suas credenciais para conectar via SSH.<br>
+            Elas serão salvas para uso futuro.
+        </p>
+        <div class="ssh-saved-info" id="ssh-saved-badge" style="display:none">
+            <span>✓</span><span>Credenciais salvas — edite se necessário</span>
+        </div>
+        <div class="ssh-error-msg" id="ssh-error-msg">Usuário e senha são obrigatórios.</div>
+        <div class="ssh-field-group">
+            <div>
+                <span class="ssh-field-label">Usuário SSH</span>
+                <input type="text" class="ssh-field" id="ssh-username" placeholder="ex: netsimon"
+                       autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+            </div>
+            <div class="ssh-field-wrap">
+                <span class="ssh-field-label">Senha SSH</span>
+                <input type="password" class="ssh-field" id="ssh-password" placeholder="••••••••"
+                       autocomplete="current-password"/>
+                <button class="pwd-toggle" onclick="togglePwd()" id="pwd-toggle-btn" type="button">👁</button>
+            </div>
+        </div>
+        <div class="ssh-popup-btns">
+            <button class="ssh-btn-cancel" id="ssh-cancel-btn" onclick="cancelSshPopup()">CANCELAR</button>
+            <button class="ssh-btn-confirm" onclick="confirmSshCredentials()">SALVAR E CONECTAR</button>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================
+     MODAL DE LOG
+     ================================================================ -->
+<div id="log-modal">
+    <div class="log-header">
+        <span class="log-title">LOG DO APP</span>
+        <div class="log-actions">
+            <button class="log-btn-small" onclick="refreshLog()">↻ ATUALIZAR</button>
+            <button id="log-close-btn" onclick="closeLogModal()">✕</button>
+        </div>
+    </div>
+    <div id="log-content">Carregando...</div>
+</div>
+
 <script>
-// =============================================================================
-// ⚙️ CONFIGURAÇÃO RÁPIDA — troque o link abaixo para mudar o fundo
-// Suporta .gif, .jpg, .png, .mp4, .webm — deixe '' para fundo sólido preto
-// =============================================================================
-var DEFAULT_BG_URL = '';
-
-// =============================================================================
-// Storage
-// =============================================================================
-function storageSave(key, val) {
-    if (window.Android && Android.storageSave) Android.storageSave(key, val);
-    else try { localStorage.setItem(key, val); } catch(e) {}
-}
-function storageGet(key) {
-    if (window.Android && Android.storageGet) return Android.storageGet(key);
-    try { return localStorage.getItem(key); } catch(e) { return null; }
-}
-
-// =============================================================================
-// Init
-// =============================================================================
-var isConnected = false;
-var timerInterval = null;
-var connectTime = null;
-var uuidPattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
-
-window.addEventListener('load', function() {
-    var savedUuid = storageGet('netsmon_uuid');
-    if (savedUuid) document.getElementById('user-uuid').value = savedUuid;
-
-    var savedConfig = storageGet('netsmon_config');
-    if (savedConfig) document.getElementById('config-input').value = savedConfig;
-
-    var savedGif = storageGet('netsmon_bg');
-    applyBackground(savedGif || DEFAULT_BG_URL);
-    document.getElementById('gif-url-input').value = savedGif || DEFAULT_BG_URL;
-
-    if (window.Android && Android.checkUpdates) Android.checkUpdates();
-});
-
-// =============================================================================
-// Background — GIF, imagem ou vídeo MP4/WebM
-// =============================================================================
-function applyBackground(url) {
-    var bg = document.getElementById('bg-layer');
-    var oldVideo = document.getElementById('bg-video');
-    if (oldVideo) oldVideo.remove();
-    if (!url || url.trim() === '') { bg.style.backgroundImage = 'none'; return; }
-    url = url.trim();
-    if (/\.(mp4|webm|ogg)(\?.*)?$/i.test(url)) {
-        bg.style.backgroundImage = 'none';
-        var v = document.createElement('video');
-        v.id = 'bg-video'; v.src = url; v.autoplay = true; v.loop = true;
-        v.muted = true; v.playsInline = true;
-        v.style.cssText = 'position:fixed;inset:0;z-index:0;width:100%;height:100%;object-fit:cover;opacity:0.18;pointer-events:none';
-        document.body.insertBefore(v, document.body.firstChild);
-    } else {
-        bg.style.backgroundImage = "url('" + url + "')";
+    // =========================================================================
+    // Storage
+    // =========================================================================
+    function storageSave(key, val) {
+        if (window.Android && Android.storageSave) Android.storageSave(key, val);
+        else try { localStorage.setItem(key, val); } catch(e) {}
     }
-}
-
-// =============================================================================
-// UUID input
-// =============================================================================
-function onUuidInput(val) { /* reservado para uso futuro */ }
-
-// =============================================================================
-// Cronômetro
-// =============================================================================
-function startTimer() {
-    connectTime = Date.now();
-    timerInterval = setInterval(function() {
-        var e = Math.floor((Date.now() - connectTime) / 1000);
-        var h = Math.floor(e / 3600), m = Math.floor((e % 3600) / 60), s = e % 60;
-        document.getElementById('timer-display').textContent = pad(h)+':'+pad(m)+':'+pad(s);
-    }, 1000);
-}
-function stopTimer() {
-    clearInterval(timerInterval); timerInterval = null; connectTime = null;
-    document.getElementById('timer-display').textContent = '--:--:--';
-}
-function pad(n) { return n < 10 ? '0'+n : ''+n; }
-
-// =============================================================================
-// Ping + IP (toque no card direito para refazer)
-// =============================================================================
-function requestPing() {
-    if (!isConnected) return;
-    document.getElementById('ping-display').textContent = 'medindo...';
-    document.getElementById('ip-display').textContent = 'buscando...';
-    if (window.Android && Android.measurePingNow) Android.measurePingNow();
-}
-
-window.onPingResult = function(ping, ip) {
-    document.getElementById('ping-display').textContent = ping < 0 ? 'timeout' : ping + ' ms';
-    if (ip && ip !== '') document.getElementById('ip-display').textContent = ip;
-};
-
-// =============================================================================
-// Tunnel state
-// =============================================================================
-window.onTunnelState = function(state) {
-    var btn = document.getElementById('btn-connection');
-    var sl  = document.getElementById('status-label');
-    btn.disabled = false;
-
-    if (state.error) {
-        isConnected = false; stopTimer();
-        btn.innerText = 'LIGAR'; btn.classList.remove('active');
-        sl.classList.remove('connected'); sl.classList.add('error-text');
-        document.getElementById('ping-display').textContent = '-- ms';
-        document.getElementById('ip-display').textContent = '--';
-        var msgs = { import_failed:'CONFIG INVÁLIDO', permission_denied:'PERMISSÃO NEGADA', exception:'ERRO INTERNO' };
-        sl.innerText = msgs[state.error] || 'ERRO';
-        if (state.error === 'import_failed') alert('Não foi possível importar o config. Verifique o JSON.');
-        return;
+    function storageGet(key) {
+        if (window.Android && Android.storageGet) return Android.storageGet(key);
+        try { return localStorage.getItem(key); } catch(e) { return null; }
     }
 
-    sl.classList.remove('error-text');
-    if (state.running) {
-        isConnected = true; startTimer();
-        btn.innerText = 'PARAR'; btn.classList.add('active');
-        sl.innerText = 'CONECTADO'; sl.classList.add('connected');
-        document.getElementById('ping-display').textContent = 'medindo...';
-        document.getElementById('ip-display').textContent = 'buscando...';
-    } else {
-        isConnected = false; stopTimer();
-        btn.innerText = 'LIGAR'; btn.classList.remove('active');
-        sl.innerText = ''; sl.classList.remove('connected');
-        document.getElementById('ping-display').textContent = '-- ms';
-        document.getElementById('ip-display').textContent = '--';
-    }
-};
+    // =========================================================================
+    // ⚙️ CONFIGURAÇÃO RÁPIDA (TROCAR FUNDO AQUI) 0— troque o link abaixo para mudar o fundo padrão
+    // Suporta .gif, .jpg, .png, .mp4, .webm — deixe '' para fundo sólido preto
+    // =========================================================================
+    var DEFAULT_BG_URL = 'https://i.pinimg.com/736x/3c/21/40/3c21402c6238f44ee794c469fdf36417.jpg';
 
-// =============================================================================
-// Botão ligar/desligar
-// =============================================================================
-document.getElementById('btn-connection').onclick = function() {
-    var btn  = document.getElementById('btn-connection');
-    var sl   = document.getElementById('status-label');
-    var uuid = document.getElementById('user-uuid').value.trim();
+    // =========================================================================
+    // Estado global
+    // =========================================================================
+    var isConnected       = false;
+    var timerInterval     = null;
+    var connectTime       = null;
+    var pingFallbackTimer = null;
+    var uuidPattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
-    if (!uuid) { alert('Insira sua CHAVE DE ACESSO (UUID)!'); return; }
-    if (!uuidPattern.test(uuid)) { alert('UUID inválido.\nFormato: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'); return; }
+    var allOperators    = [];
+    var currentCategory = null;
+    var selectedOpName  = null;
 
-    storageSave('netsmon_uuid', uuid);
+    var sshPopupMode       = 'connect';
+    var sshPendingUuid     = null;
+    var sshPendingOperator = null;
 
-    if (btn.innerText === 'LIGAR') {
-        btn.disabled = true;
-        sl.innerText = 'CONECTANDO...';
-        sl.classList.add('connected'); sl.classList.remove('error-text');
-        document.getElementById('ping-display').textContent = 'aguarde...';
-        if (window.Android) {
-            Android.startTunnel(uuid);
-        } else {
-            // Simulação para teste no browser
-            setTimeout(function() {
-                window.onTunnelState({running:true, error:null});
-                setTimeout(function(){ window.onPingResult(87, '187.23.10.42'); }, 1500);
-            }, 1200);
+    // =========================================================================
+    // Init
+    // =========================================================================
+    window.addEventListener('load', function() {
+        var savedUuid = storageGet('netsmon_uuid');
+        if (savedUuid) document.getElementById('user-uuid').value = savedUuid;
+
+        var savedConfig = storageGet('netsmon_config');
+        if (savedConfig) document.getElementById('config-input').value = savedConfig;
+
+        var savedGif = storageGet('netsmon_bg');
+        applyBackground(savedGif || DEFAULT_BG_URL);
+        if (document.getElementById('gif-url-input'))
+            document.getElementById('gif-url-input').value = savedGif || DEFAULT_BG_URL;
+
+        var savedOp = storageGet('netsmon_operator');
+        if (savedOp) selectedOpName = savedOp;
+
+        updateSshCredBtn();
+
+        if (window.Android && Android.checkUpdates) Android.checkUpdates();
+
+        if (window.Android && Android.getOperators) {
+            try {
+                var json = Android.getOperators();
+                if (json && json !== '[]') {
+                    var ops = JSON.parse(json);
+                    onOperatorsReady(ops, selectedOpName || (ops.length > 0 ? ops[0].name : null));
+                }
+            } catch(e) {}
         }
-    } else {
-        btn.disabled = true;
-        if (window.Android) Android.stopTunnel();
-        else window.onTunnelState({running:false, error:null});
+    });
+
+    // =========================================================================
+    // Credenciais SSH
+    // =========================================================================
+    function hasSshCreds() {
+        var u = storageGet('ssh_username');
+        var p = storageGet('ssh_password');
+        return !!(u && u.trim() && p && p.trim());
     }
-};
 
-// =============================================================================
-// Navegação
-// =============================================================================
-function goToConfig() {
-    window.history.pushState({page:'config'}, 'Config');
-    showPage('config-screen');
-}
-function goBack() { window.history.back(); }
-window.onpopstate = function() { showPage('home'); };
-function showPage(id) {
-    document.querySelectorAll('section').forEach(function(s){ s.classList.remove('active'); });
-    document.getElementById(id).classList.add('active');
-}
-
-// =============================================================================
-// Salvar configurações avançadas
-// =============================================================================
-function saveConfig() {
-    var val = document.getElementById('config-input').value.trim();
-    if (val && !val.startsWith('vless://') && !val.includes('"outbounds"')) {
-        alert('Config não reconhecido.\nUse VLESS (vless://...) ou JSON completo com "outbounds".');
-        return;
+    function updateSshCredBtn() {
+        var btn = document.getElementById('ssh-cred-btn');
+        if (hasSshCreds()) btn.classList.add('has-creds');
+        else btn.classList.remove('has-creds');
     }
-    storageSave('netsmon_config', val);
 
-    var gifUrl = document.getElementById('gif-url-input').value.trim();
-    storageSave('netsmon_bg', gifUrl);
-    applyBackground(gifUrl);
+    function openSshPopup(editMode, uuid, opName) {
+        sshPopupMode       = editMode ? 'edit' : 'connect';
+        sshPendingUuid     = uuid     || null;
+        sshPendingOperator = opName   || null;
 
-    alert('Configurações salvas!');
-    goBack();
-}
+        var savedUser = storageGet('ssh_username') || '';
+        var savedPass = storageGet('ssh_password') || '';
+        document.getElementById('ssh-username').value = savedUser;
+        document.getElementById('ssh-password').value = savedPass;
+
+        if (editMode) {
+            document.getElementById('ssh-popup-title').textContent = 'CREDENCIAIS SSH';
+            document.getElementById('ssh-popup-sub').textContent   = 'Edite suas credenciais de acesso SSH.';
+            document.getElementById('ssh-cancel-btn').textContent  = 'FECHAR';
+            document.querySelector('.ssh-btn-confirm').textContent  = 'SALVAR';
+        } else {
+            document.getElementById('ssh-popup-title').textContent = 'ACESSO SSH NECESSÁRIO';
+            document.getElementById('ssh-popup-sub').textContent   = 'Insira suas credenciais para conectar via SSH.\nSerão salvas para uso futuro.';
+            document.getElementById('ssh-cancel-btn').textContent  = 'CANCELAR';
+            document.querySelector('.ssh-btn-confirm').textContent  = 'SALVAR E CONECTAR';
+        }
+
+        document.getElementById('ssh-saved-badge').style.display = hasSshCreds() ? 'flex' : 'none';
+        document.getElementById('ssh-error-msg').classList.remove('show');
+        document.getElementById('ssh-popup-overlay').classList.add('open');
+
+        setTimeout(function() {
+            if (!savedUser) document.getElementById('ssh-username').focus();
+            else if (!savedPass) document.getElementById('ssh-password').focus();
+        }, 300);
+    }
+
+    function closeSshPopup() {
+        document.getElementById('ssh-popup-overlay').classList.remove('open');
+        document.getElementById('ssh-password').type = 'password';
+        document.getElementById('pwd-toggle-btn').textContent = '👁';
+    }
+
+    function cancelSshPopup() {
+        closeSshPopup();
+        if (sshPopupMode === 'connect') resetConnectionBtn();
+        sshPendingUuid = null;
+        sshPendingOperator = null;
+    }
+
+    function handleSshOverlayClick(e) {
+        if (sshPopupMode === 'connect') return;
+        if (e.target === document.getElementById('ssh-popup-overlay')) closeSshPopup();
+    }
+
+    function togglePwd() {
+        var field = document.getElementById('ssh-password');
+        var btn   = document.getElementById('pwd-toggle-btn');
+        if (field.type === 'password') { field.type = 'text'; btn.textContent = '🙈'; }
+        else { field.type = 'password'; btn.textContent = '👁'; }
+    }
+
+    function confirmSshCredentials() {
+        var user = document.getElementById('ssh-username').value.trim();
+        var pass = document.getElementById('ssh-password').value.trim();
+        var errEl = document.getElementById('ssh-error-msg');
+
+        if (!user || !pass) {
+            errEl.textContent = 'Usuário e senha são obrigatórios.';
+            errEl.classList.add('show');
+            return;
+        }
+        errEl.classList.remove('show');
+        storageSave('ssh_username', user);
+        storageSave('ssh_password', pass);
+        updateSshCredBtn();
+        closeSshPopup();
+
+        if (sshPopupMode === 'connect' && sshPendingUuid && sshPendingOperator) {
+            var uuid   = sshPendingUuid;
+            var opName = sshPendingOperator;
+            sshPendingUuid = null;
+            sshPendingOperator = null;
+            if (window.Android && Android.startSshWithCredentials) {
+                Android.startSshWithCredentials(uuid, opName, user, pass);
+            }
+        }
+    }
+
+    window.requestSshCredentials = function(uuid, opName, authFailed) {
+        if (authFailed) {
+            storageSave('ssh_username', '');
+            storageSave('ssh_password', '');
+            updateSshCredBtn();
+            document.getElementById('ssh-popup-sub').textContent = '⚠️ Credenciais incorretas. Tente novamente.';
+        }
+        openSshPopup(false, uuid, opName);
+    };
+
+    // =========================================================================
+    // Operadoras — callback Android
+    // =========================================================================
+    window.onOperatorsReady = function(operators, defaultOpName) {
+        allOperators = operators || [];
+
+        var targetName = selectedOpName || defaultOpName || (allOperators.length > 0 ? allOperators[0].name : null);
+        if (targetName) {
+            var op = allOperators.find(function(o){ return o.name === targetName; });
+            if (op) {
+                selectedOpName = op.name;
+                applySelectedOperator(op);
+                storageSave('netsmon_operator', op.name);
+            }
+        }
+        renderModal();
+    };
+
+    // =========================================================================
+    // Modal operadoras
+    // =========================================================================
+    function openOperatorModal() { renderModal(); document.getElementById('operator-modal').classList.add('open'); }
+    function closeOperatorModal() { document.getElementById('operator-modal').classList.remove('open'); }
+    function handleModalBackdrop(e) { if (e.target === document.getElementById('operator-modal')) closeOperatorModal(); }
+
+    function renderModal() {
+        if (allOperators.length === 0) return;
+        var cats = [];
+        allOperators.forEach(function(op) {
+            if (op.category && op.category.name && cats.indexOf(op.category.name) < 0) cats.push(op.category.name);
+        });
+        cats.sort();
+        if (!currentCategory || cats.indexOf(currentCategory) < 0) currentCategory = cats[0];
+
+        var tabsEl = document.getElementById('cat-tabs');
+        tabsEl.innerHTML = '';
+        cats.forEach(function(cat) {
+            var btn = document.createElement('button');
+            btn.className = 'cat-tab' + (cat === currentCategory ? ' active' : '');
+            btn.textContent = cat;
+            btn.onclick = function() { selectCategory(cat); };
+            tabsEl.appendChild(btn);
+        });
+        renderOpList();
+    }
+
+    function selectCategory(cat) {
+        currentCategory = cat;
+        document.querySelectorAll('.cat-tab').forEach(function(t) { t.classList.toggle('active', t.textContent === cat); });
+        renderOpList();
+    }
+
+    function renderOpList() {
+        var list = document.getElementById('op-list');
+        var filtered = allOperators.filter(function(op) { return op.category && op.category.name === currentCategory; });
+        if (filtered.length === 0) {
+            list.innerHTML = '<div style="text-align:center;padding:24px;color:#333;font-size:.8rem">Nenhuma configuração disponível</div>';
+            return;
+        }
+        list.innerHTML = '';
+        filtered.forEach(function(op) {
+            var item = document.createElement('div');
+            item.className = 'op-item' + (op.name === selectedOpName ? ' selected' : '');
+            item.onclick = function() { chooseOperator(op); };
+            var badge = getBadge(op.mode);
+            var iconSrc = op.icon || 'file:///android_asset/operadora.png';
+            var desc = op.description ? '<div class="op-desc">' + escHtml(op.description) + '</div>' : '';
+            item.innerHTML =
+                '<img class="op-icon" src="' + iconSrc + '" onerror="this.src=\'file:///android_asset/operadora.png\'">' +
+                '<div class="op-info"><div class="op-name">' + escHtml(op.name) + '</div>' + desc + '</div>' +
+                '<span class="op-mode-badge ' + badge.cls + '">' + badge.label + '</span>' +
+                '<div class="op-check"></div>';
+            list.appendChild(item);
+        });
+    }
+
+    function getBadge(mode) {
+        switch((mode||'').toUpperCase()) {
+            case 'SSH_DIRECT': return {cls:'badge-ssh',   label:'SSH'};
+            case 'V2RAY':      return {cls:'badge-v2ray', label:'V2RAY'};
+            case 'SSL_PROXY':  return {cls:'badge-ssl',   label:'SSL'};
+            default:           return {cls:'badge-other', label:mode||'?'};
+        }
+    }
+
+    function escHtml(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+    function chooseOperator(op) {
+        selectedOpName = op.name;
+        storageSave('netsmon_operator', op.name);
+        if (window.Android && Android.selectOperator) Android.selectOperator(op.name);
+        applySelectedOperator(op);
+        closeOperatorModal();
+    }
+
+    function applySelectedOperator(op) {
+        var img = document.getElementById('op-circle-img');
+        if (img && op.icon) { img.src = op.icon; img.onerror = function(){ this.src='file:///android_asset/operadora.png'; }; }
+        var label = document.getElementById('op-selected-label');
+        if (label) label.textContent = op.name.toUpperCase();
+        renderOpList();
+    }
+
+    // =========================================================================
+    // Toast
+    // =========================================================================
+    var toastShown = false, toastTimer = null;
+    window.onUpdateComplete = function() {
+        if (toastShown) return; toastShown = true;
+        var t = document.getElementById('update-toast');
+        t.classList.add('show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(function(){ t.classList.remove('show'); }, 3000);
+    };
+
+    // =========================================================================
+    // Background — GIF, imagem ou vídeo MP4/WebM
+    // =========================================================================
+    function applyBackground(url) {
+        var bg = document.getElementById('bg-layer');
+        var old = document.getElementById('bg-video'); if (old) old.remove();
+        if (!url || !url.trim()) { bg.style.backgroundImage='none'; return; }
+        url = url.trim();
+        if (/\.(mp4|webm|ogg)(\?.*)?$/i.test(url)) {
+            bg.style.backgroundImage = 'none';
+            var v = document.createElement('video');
+            v.id='bg-video'; v.src=url; v.autoplay=true; v.loop=true; v.muted=true; v.playsInline=true;
+            v.style.cssText='position:fixed;inset:0;z-index:0;width:100%;height:100%;object-fit:cover;opacity:0.18;pointer-events:none';
+            document.body.insertBefore(v, document.body.firstChild);
+        } else { bg.style.backgroundImage="url('"+url+"')"; }
+    }
+
+    // =========================================================================
+    // Cronômetro
+    // =========================================================================
+    function startTimer() {
+        connectTime = Date.now();
+        timerInterval = setInterval(function() {
+            var e=Math.floor((Date.now()-connectTime)/1000);
+            var h=Math.floor(e/3600),m=Math.floor((e%3600)/60),s=e%60;
+            document.getElementById('timer-display').textContent=pad(h)+':'+pad(m)+':'+pad(s);
+        }, 1000);
+    }
+    function stopTimer() { clearInterval(timerInterval); timerInterval=null; connectTime=null; document.getElementById('timer-display').textContent='--:--:--'; }
+    function pad(n) { return n<10?'0'+n:''+n; }
+
+    // =========================================================================
+    // IP / Ping
+    // =========================================================================
+    function requestPing() {
+        if (!isConnected) return;
+        document.getElementById('ping-display').textContent='medindo...';
+        document.getElementById('ip-display').textContent='buscando...';
+        if (window.Android && Android.measurePingNow) Android.measurePingNow();
+        clearTimeout(pingFallbackTimer);
+        pingFallbackTimer = setTimeout(function() {
+            if (document.getElementById('ping-display').textContent==='medindo...') fetchIpAndPingFallback();
+        }, 4000);
+    }
+    function fetchIpAndPingFallback() {
+        var pingEl=document.getElementById('ping-display'), ipEl=document.getElementById('ip-display'), t0=Date.now();
+        fetch('https://api.ipify.org?format=json',{cache:'no-store'})
+            .then(function(r){return r.json();})
+            .then(function(d){ var l=Date.now()-t0; ipEl.textContent=(d&&d.ip)?d.ip:'indisponível'; pingEl.textContent=(d&&d.ip)?l+' ms':'-- ms'; })
+            .catch(function(){ ipEl.textContent='sem acesso'; pingEl.textContent='-- ms'; });
+    }
+
+    window.onSshStatus = function(message) {
+        var sl = document.getElementById('status-label');
+        if (sl && isConnected) {
+            sl.innerText = message;
+            sl.classList.remove('error-text');
+            sl.classList.add('connected');
+        }
+    };
+
+    window.onPingResult = function(ping, ip) {
+        clearTimeout(pingFallbackTimer);
+        document.getElementById('ping-display').textContent = ping<0?'timeout':ping+' ms';
+        if (ip && ip!=='') document.getElementById('ip-display').textContent = ip;
+    };
+
+    // =========================================================================
+    // Estado do túnel
+    // =========================================================================
+    function resetConnectionBtn() {
+        var btn=document.getElementById('btn-connection'), sl=document.getElementById('status-label');
+        btn.disabled=false; btn.innerText='LIGAR'; btn.classList.remove('active');
+        sl.innerText=''; sl.classList.remove('connected','error-text');
+        document.getElementById('ping-display').textContent='-- ms';
+        document.getElementById('ip-display').textContent='--';
+    }
+
+    window.onTunnelState = function(state) {
+        var btn=document.getElementById('btn-connection'), sl=document.getElementById('status-label');
+        btn.disabled = false;
+
+        if (state.error) {
+            isConnected=false; stopTimer(); clearTimeout(pingFallbackTimer);
+            btn.innerText='LIGAR'; btn.classList.remove('active');
+            sl.classList.remove('connected'); sl.classList.add('error-text');
+            document.getElementById('ping-display').textContent='-- ms';
+            document.getElementById('ip-display').textContent='--';
+
+            if (state.error === 'ssh_auth_failed') {
+                sl.innerText = 'CREDENCIAIS INVÁLIDAS';
+                var uuid = document.getElementById('user-uuid').value.trim();
+                window.requestSshCredentials(uuid, selectedOpName, true);
+                return;
+            }
+            if (state.error === 'ssh_no_credentials') {
+                sl.innerText = 'CREDENCIAIS SSH NECESSÁRIAS';
+                var uuid = document.getElementById('user-uuid').value.trim();
+                window.requestSshCredentials(uuid, selectedOpName, false);
+                return;
+            }
+
+            var msgs = {
+                import_failed:        'CONFIG INVÁLIDO',
+                xray_start_failed:    'FALHA AO INICIAR XRAY',
+                permission_denied:    'PERMISSÃO NEGADA',
+                exception:            'ERRO INTERNO',
+                ssh_error:            'ERRO SSH',
+                ssh_payload_error:    'ERRO NO HANDSHAKE',
+                ssl_not_implemented:  'SSL PROXY EM BREVE',
+                no_operator_selected: 'SELECIONE UMA OPERADORA',
+                unknown_mode:         'MODO DESCONHECIDO'
+            };
+            var errKey = state.error.startsWith('ssh_error:') ? 'SSH: '+state.error.split(':').slice(1).join(':') : null;
+            sl.innerText = errKey || msgs[state.error] || 'ERRO';
+            if (state.error==='import_failed') alert('Não foi possível importar o config. Verifique o JSON.');
+            return;
+        }
+
+        sl.classList.remove('error-text');
+        if (state.running) {
+            isConnected=true; startTimer();
+            btn.innerText='PARAR'; btn.classList.add('active');
+            sl.innerText='CONECTADO'; sl.classList.add('connected');
+            requestPing();
+        } else {
+            isConnected=false; stopTimer(); clearTimeout(pingFallbackTimer);
+            btn.innerText='LIGAR'; btn.classList.remove('active');
+            sl.innerText=''; sl.classList.remove('connected');
+            document.getElementById('ping-display').textContent='-- ms';
+            document.getElementById('ip-display').textContent='--';
+        }
+    };
+
+    // =========================================================================
+    // Botão ligar / desligar
+    // =========================================================================
+    document.getElementById('btn-connection').onclick = function() {
+        var btn=document.getElementById('btn-connection'), sl=document.getElementById('status-label');
+        var uuid=document.getElementById('user-uuid').value.trim();
+
+        if (!uuid) { alert('Insira sua CHAVE DE ACESSO (UUID)!'); return; }
+        if (!uuidPattern.test(uuid)) { alert('UUID inválido.\nFormato: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'); return; }
+
+        storageSave('netsmon_uuid', uuid);
+
+        if (btn.innerText==='LIGAR') {
+            if (!selectedOpName && window.Android) {
+                if (!confirm('Nenhuma operadora selecionada. Usar configuração padrão?')) return;
+            }
+
+            var op = allOperators.find(function(o){ return o.name===selectedOpName; });
+            if (op && (op.mode==='SSH_DIRECT' || op.mode==='SLOWDNS') && !hasSshCreds()) {
+                openSshPopup(false, uuid, selectedOpName);
+                return;
+            }
+
+            btn.disabled=true;
+            sl.innerText='CONECTANDO...';
+            sl.classList.add('connected'); sl.classList.remove('error-text');
+            document.getElementById('ping-display').textContent='aguarde...';
+
+            if (window.Android) {
+                var sshUser = storageGet('ssh_username') || '';
+                var sshPass = storageGet('ssh_password') || '';
+                Android.startTunnelWithCreds(uuid, sshUser, sshPass);
+            } else {
+                setTimeout(function(){ window.onTunnelState({running:true,error:null}); }, 1200);
+            }
+        } else {
+            btn.disabled=true;
+            if (window.Android) Android.stopTunnel();
+            else window.onTunnelState({running:false,error:null});
+        }
+    };
+
+    // =========================================================================
+    // Modal de Log
+    // =========================================================================
+    function openLogModal() {
+        document.getElementById('log-modal').classList.add('open');
+        refreshLog();
+    }
+
+    function closeLogModal() {
+        document.getElementById('log-modal').classList.remove('open');
+    }
+
+    function refreshLog() {
+        var el = document.getElementById('log-content');
+        el.textContent = 'Carregando...';
+        setTimeout(function() {
+            try {
+                var raw = (window.Android && Android.getAppLog) ? Android.getAppLog(300) : 'Android bridge não disponível.';
+                el.innerHTML = '';
+                var lines = raw.split('\n');
+                lines.forEach(function(line) {
+                    var span = document.createElement('div');
+                    if (line.indexOf(' E/') >= 0 || line.indexOf(' E ') >= 0) span.className = 'log-error';
+                    else if (line.indexOf(' W/') >= 0 || line.indexOf(' W ') >= 0) span.className = 'log-warn';
+                    else if (line.indexOf(' I/') >= 0 || line.indexOf(' I ') >= 0) span.className = 'log-info';
+                    span.textContent = line;
+                    el.appendChild(span);
+                });
+                el.scrollTop = el.scrollHeight;
+            } catch(e) {
+                el.textContent = 'Erro ao ler log: ' + e.message;
+            }
+        }, 50);
+    }
+
+    // =========================================================================
+    // Navegação
+    // =========================================================================
+    function goToConfig() { window.history.pushState({page:'config'},'Config'); showPage('config-screen'); }
+    function goBack() { window.history.back(); }
+    window.onpopstate = function() { showPage('home'); };
+    function showPage(id) { document.querySelectorAll('section').forEach(function(s){ s.classList.remove('active'); }); document.getElementById(id).classList.add('active'); }
+
+    // =========================================================================
+    // Salvar config avançado
+    // =========================================================================
+    function saveConfig() {
+        var val=document.getElementById('config-input').value.trim();
+        if (val && !val.startsWith('vless://') && !val.includes('"outbounds"')) { alert('Config não reconhecido.\nUse VLESS ou JSON com "outbounds".'); return; }
+        storageSave('netsmon_config', val);
+        var gif=document.getElementById('gif-url-input').value.trim();
+        storageSave('netsmon_bg', gif); applyBackground(gif);
+        alert('Configurações salvas!'); goBack();
+    }
 </script>
 </body>
 </html>
