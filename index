@@ -14,12 +14,36 @@
             --green:  #2ecc71;
             --red:    #e74c3c;
         }
-        #bg-layer {
-            position:fixed; inset:0; z-index:0;
-            background-size:cover; background-position:center;
-            background-repeat:no-repeat; opacity:0.18; pointer-events:none;
+
+        /* ── CAMADAS (de baixo para cima) ──────────────────────────────────────
+           z-index 0 → fundo sólido preto (body background:#000)
+           z-index 1 → canvas neon (animado, sempre visível)
+           z-index 2 → imagem de fundo (carrega depois, opacidade 0.5)
+           z-index 3 → conteúdo do app
+           ─────────────────────────────────────────────────────────────────── */
+
+        /* Canvas neon: ABAIXO da imagem de fundo mas ACIMA do preto sólido     */
+        #neon-canvas {
+            position: fixed; inset: 0;
+            z-index: 1;
+            pointer-events: none;
         }
-        body { display:flex; flex-direction:column; align-items:center; position:relative; z-index:1; }
+
+        /* Imagem/vídeo de fundo: carrega depois, fica em cima do neon          */
+        /* opacity: 0.5 conforme solicitado                                      */
+        #bg-layer {
+            position: fixed; inset: 0;
+            z-index: 2;
+            background-size: cover; background-position: center;
+            background-repeat: no-repeat;
+            opacity: 0;                  /* começa invisível, transição suave   */
+            pointer-events: none;
+            transition: opacity 0.8s ease;
+        }
+        #bg-layer.loaded { opacity: 0.5; }   /* 50% de opacidade ao carregar   */
+
+        /* Conteúdo: acima de tudo                                              */
+        body { display:flex; flex-direction:column; align-items:center; position:relative; z-index:3; }
 
         @keyframes colorBreeze {
             0%   { background-position:0% 50%; }
@@ -137,70 +161,43 @@
         .btn-cancel { background:transparent; color:#555; border:none; padding:13px; font-weight:bold; cursor:pointer; margin-bottom:12px; }
         .field-label { font-size:.6rem; color:#666; text-transform:uppercase; letter-spacing:1px; margin-bottom:2px; }
 
+        /* ── Botão LOG (esquerdo) ── */
         #log-btn {
             position:fixed; bottom:18px; left:18px; z-index:500;
             width:36px; height:36px; border-radius:50%;
-            background:rgba(10,10,30,.85);
-            border:1px solid #1a2540;
-            color:#334; font-size:.9rem;
-            display:flex; align-items:center; justify-content:center;
-            cursor:pointer; transition:all .2s;
-            box-shadow:0 2px 8px rgba(0,0,0,.5);
+            background:rgba(10,10,30,.85); border:1px solid #1a2540;
+            color:#334; font-size:.9rem; display:flex; align-items:center; justify-content:center;
+            cursor:pointer; transition:all .2s; box-shadow:0 2px 8px rgba(0,0,0,.5);
         }
-        #log-btn:hover, #log-btn:active {
-            border-color:var(--glow); color:var(--glow);
-            box-shadow:0 0 12px rgba(0,123,255,.4);
-        }
+        #log-btn:hover, #log-btn:active { border-color:var(--glow); color:var(--glow); box-shadow:0 0 12px rgba(0,123,255,.4); }
 
+        /* ── Botão SSH (direito) ── */
         #ssh-cred-btn {
             position:fixed; bottom:18px; right:18px; z-index:500;
             width:36px; height:36px; border-radius:50%;
-            background:rgba(10,10,30,.85);
-            border:1px solid #1a2540;
-            color:#334; font-size:.9rem;
-            display:flex; align-items:center; justify-content:center;
-            cursor:pointer; transition:all .2s;
-            box-shadow:0 2px 8px rgba(0,0,0,.5);
+            background:rgba(10,10,30,.85); border:1px solid #1a2540;
+            color:#334; font-size:.9rem; display:flex; align-items:center; justify-content:center;
+            cursor:pointer; transition:all .2s; box-shadow:0 2px 8px rgba(0,0,0,.5);
         }
-        #ssh-cred-btn:hover, #ssh-cred-btn:active {
-            border-color:var(--glow); color:var(--glow);
-            box-shadow:0 0 12px rgba(0,123,255,.4);
-        }
+        #ssh-cred-btn:hover, #ssh-cred-btn:active { border-color:var(--glow); color:var(--glow); box-shadow:0 0 12px rgba(0,123,255,.4); }
         #ssh-cred-btn.has-creds::after {
             content:''; position:absolute; top:2px; right:2px;
             width:8px; height:8px; border-radius:50%;
             background:var(--green); border:1px solid #000;
         }
 
-        .bottom-modal {
-            display:none; position:fixed; inset:0; z-index:1000;
-            background:rgba(0,0,0,.75); align-items:flex-end;
-        }
+        /* ── Modal operadoras ── */
+        .bottom-modal { display:none; position:fixed; inset:0; z-index:1000; background:rgba(0,0,0,.75); align-items:flex-end; }
         .bottom-modal.open { display:flex; animation:fadeIn .2s; }
-        .modal-sheet {
-            width:100%; max-width:450px; margin:0 auto;
-            background:#0a0a18; border-top:1px solid #222;
-            border-radius:18px 18px 0 0; padding:0 0 24px;
-            animation:slideUp .3s ease; max-height:80vh; overflow-y:auto;
-        }
+        .modal-sheet { width:100%; max-width:450px; margin:0 auto; background:#0a0a18; border-top:1px solid #222; border-radius:18px 18px 0 0; padding:0 0 24px; animation:slideUp .3s ease; max-height:80vh; overflow-y:auto; }
         .modal-handle { width:40px; height:4px; background:#333; border-radius:2px; margin:12px auto 16px; }
         .modal-title { text-align:center; font-size:.7rem; color:#555; text-transform:uppercase; letter-spacing:2px; margin-bottom:16px; }
-
         .cat-tabs { display:flex; gap:8px; padding:0 16px; overflow-x:auto; scrollbar-width:none; margin-bottom:14px; }
         .cat-tabs::-webkit-scrollbar { display:none; }
-        .cat-tab {
-            flex-shrink:0; padding:6px 16px; border:1px solid #333; border-radius:20px;
-            background:transparent; color:#777; font-size:.68rem; font-weight:700;
-            text-transform:uppercase; letter-spacing:1px; cursor:pointer; transition:all .2s;
-        }
+        .cat-tab { flex-shrink:0; padding:6px 16px; border:1px solid #333; border-radius:20px; background:transparent; color:#777; font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; cursor:pointer; transition:all .2s; }
         .cat-tab.active { border-color:var(--glow); color:#fff; background:rgba(0,123,255,.15); box-shadow:0 0 8px rgba(0,123,255,.3); }
-
         .op-list { padding:0 12px; display:flex; flex-direction:column; gap:8px; }
-        .op-item {
-            display:flex; align-items:center; gap:12px; padding:12px 14px;
-            background:#0f1626; border:1px solid #1a2540; border-radius:12px;
-            cursor:pointer; transition:all .2s; position:relative;
-        }
+        .op-item { display:flex; align-items:center; gap:12px; padding:12px 14px; background:#0f1626; border:1px solid #1a2540; border-radius:12px; cursor:pointer; transition:all .2s; position:relative; }
         .op-item:active { border-color:var(--glow); background:#0a1a35; }
         .op-item.selected { border-color:var(--green); background:rgba(46,204,113,.07); }
         .op-icon { width:40px; height:40px; border-radius:50%; object-fit:cover; border:1px solid #222; flex-shrink:0; background:#0a0a0a; }
@@ -215,26 +212,12 @@
         .op-check { width:18px; height:18px; border-radius:50%; border:2px solid #333; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:.65rem; transition:all .2s; }
         .op-item.selected .op-check { background:var(--green); border-color:var(--green); }
         .op-item.selected .op-check::after { content:'✓'; color:#000; font-weight:900; }
-
         .modal-close-btn { display:block; width:calc(100% - 32px); margin:16px 16px 0; padding:14px; background:transparent; border:1px solid #222; color:#555; border-radius:12px; font-size:.85rem; cursor:pointer; }
 
-        #ssh-popup-overlay {
-            display:none; position:fixed; inset:0; z-index:2000;
-            background:rgba(0,0,0,.85); align-items:center; justify-content:center;
-        }
+        /* ── Popup SSH ── */
+        #ssh-popup-overlay { display:none; position:fixed; inset:0; z-index:2000; background:rgba(0,0,0,.85); align-items:center; justify-content:center; }
         #ssh-popup-overlay.open { display:flex; }
-
-        .ssh-popup {
-            position:fixed; top:50%; left:50%;
-            transform:translate(-50%,-50%);
-            width:calc(100% - 40px); max-width:360px;
-            background:#0a0a1a;
-            border:1px solid #1a2a50;
-            border-radius:18px;
-            padding:24px 20px 20px;
-            animation:popIn .25s ease;
-            z-index:2001;
-        }
+        .ssh-popup { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); width:calc(100% - 40px); max-width:360px; background:#0a0a1a; border:1px solid #1a2a50; border-radius:18px; padding:24px 20px 20px; animation:popIn .25s ease; z-index:2001; }
         .ssh-popup-icon { width:48px; height:48px; border-radius:50%; background:rgba(0,123,255,.15); border:1px solid #1a4a80; display:flex; align-items:center; justify-content:center; font-size:1.4rem; margin:0 auto 14px; }
         .ssh-popup h3 { text-align:center; font-size:.9rem; font-weight:700; letter-spacing:1px; margin-bottom:4px; }
         .ssh-popup .ssh-popup-sub { text-align:center; font-size:.68rem; color:#555; margin-bottom:20px; line-height:1.5; }
@@ -245,47 +228,73 @@
         .ssh-field:focus { border-color:var(--glow); }
         .ssh-field::placeholder { color:#2a3040; }
         .pwd-toggle { position:absolute; right:12px; top:50%; transform:translateY(-50%); background:none; border:none; color:#444; cursor:pointer; font-size:.8rem; padding:4px; }
-        .pwd-toggle:hover { color:#888; }
         .ssh-popup-btns { display:flex; gap:10px; }
-        .ssh-btn-confirm { flex:1; background:var(--glow); color:#fff; border:none; padding:13px; border-radius:10px; font-weight:700; font-size:.88rem; cursor:pointer; letter-spacing:.5px; }
-        .ssh-btn-confirm:active { opacity:.8; }
+        .ssh-btn-confirm { flex:1; background:var(--glow); color:#fff; border:none; padding:13px; border-radius:10px; font-weight:700; font-size:.88rem; cursor:pointer; }
         .ssh-btn-cancel { flex:0 0 auto; background:transparent; color:#444; border:1px solid #1a2540; padding:13px 18px; border-radius:10px; font-size:.88rem; cursor:pointer; }
         .ssh-error-msg { display:none; font-size:.68rem; color:var(--red); text-align:center; margin-top:-10px; margin-bottom:10px; }
         .ssh-error-msg.show { display:block; }
         .ssh-saved-info { display:flex; align-items:center; gap:8px; background:rgba(46,204,113,.08); border:1px solid rgba(46,204,113,.2); border-radius:8px; padding:8px 12px; margin-bottom:16px; font-size:.68rem; color:#2ecc71; }
 
-        #log-modal {
-            display:none; position:fixed; inset:0; z-index:3000;
-            background:rgba(0,0,0,.92); flex-direction:column;
-        }
+        /* ── Modal Log ── */
+        #log-modal { display:none; position:fixed; inset:0; z-index:3000; background:rgba(0,0,0,.96); flex-direction:column; }
         #log-modal.open { display:flex; animation:fadeIn .2s; }
-        .log-header {
-            display:flex; align-items:center; justify-content:space-between;
-            padding:14px 16px 10px; border-bottom:1px solid #1a2540; flex-shrink:0;
-        }
-        .log-title { font-size:.75rem; font-weight:700; color:#4a9eff; text-transform:uppercase; letter-spacing:2px; }
+        .log-header { display:flex; align-items:center; justify-content:space-between; padding:12px 14px 8px; border-bottom:1px solid #1a2540; flex-shrink:0; background:#050510; }
+        .log-title { font-size:.72rem; font-weight:700; color:#4a9eff; text-transform:uppercase; letter-spacing:2px; }
         .log-actions { display:flex; gap:8px; align-items:center; }
-        .log-btn-small {
-            background:transparent; border:1px solid #1a2540; color:#555;
-            padding:5px 12px; border-radius:8px; font-size:.68rem; cursor:pointer; font-weight:700;
-        }
+        .log-btn-small { background:transparent; border:1px solid #1a2540; color:#555; padding:5px 12px; border-radius:8px; font-size:.65rem; cursor:pointer; font-weight:700; }
         .log-btn-small:active { border-color:var(--glow); color:var(--glow); }
         #log-close-btn { background:transparent; border:none; color:#555; font-size:1.1rem; cursor:pointer; padding:4px 8px; }
-        #log-close-btn:active { color:#fff; }
-        #log-content {
-            flex:1; overflow-y:auto; padding:12px 14px;
-            font-family:monospace; font-size:.65rem; line-height:1.6;
-            color:#2ecc71; white-space:pre-wrap; word-break:break-all;
+
+        /* ── Estilo amigável do log (estilo HTTP Injector) ── */
+        #log-content { flex:1; overflow-y:auto; padding:8px 0; font-family:monospace; font-size:.63rem; line-height:1; }
+        .log-entry {
+            display:flex; align-items:flex-start; gap:0;
+            padding:5px 10px; border-bottom:1px solid rgba(255,255,255,.04);
+            transition:background .15s;
         }
-        #log-content .log-error { color:var(--red); }
-        #log-content .log-warn  { color:#f39c12; }
-        #log-content .log-info  { color:#4a9eff; }
+        .log-entry:active { background:rgba(255,255,255,.04); }
+        .log-badge {
+            flex-shrink:0; width:28px; text-align:center;
+            font-size:.58rem; font-weight:900; border-radius:3px;
+            padding:1px 0; margin-right:7px; margin-top:1px;
+            text-transform:uppercase; letter-spacing:.5px;
+        }
+        .badge-E { background:rgba(231,76,60,.25); color:#e74c3c; border:1px solid rgba(231,76,60,.4); }
+        .badge-W { background:rgba(243,156,18,.2); color:#f39c12; border:1px solid rgba(243,156,18,.35); }
+        .badge-I { background:rgba(52,152,219,.2); color:#3498db; border:1px solid rgba(52,152,219,.35); }
+        .badge-D { background:rgba(149,165,166,.12); color:#7f8c8d; border:1px solid rgba(149,165,166,.25); }
+        .badge-V { background:rgba(149,165,166,.06); color:#555; border:1px solid #222; }
+        .log-meta { flex-shrink:0; color:#3a4a5a; font-size:.58rem; margin-right:6px; white-space:nowrap; margin-top:1px; }
+        .log-tag { flex-shrink:0; color:#5a7a9a; font-size:.60rem; font-weight:700; margin-right:5px; white-space:nowrap; margin-top:1px; max-width:90px; overflow:hidden; text-overflow:ellipsis; }
+        .log-msg { flex:1; color:#c8d8e8; font-size:.62rem; word-break:break-all; line-height:1.4; white-space:pre-wrap; }
+        .log-entry.lvl-E .log-msg { color:#e74c3c; }
+        .log-entry.lvl-W .log-msg { color:#e8c070; }
+        .log-entry.lvl-I .log-msg { color:#88bbe8; }
+        .log-entry.lvl-D .log-msg { color:#8a9aaa; }
+        .log-entry.lvl-V .log-msg { color:#4a5a6a; }
+
+        /* ── Seção de resumo no topo do log ── */
+        .log-summary {
+            display:flex; gap:8px; padding:8px 10px 6px;
+            border-bottom:1px solid #1a2540; flex-shrink:0; flex-wrap:wrap;
+        }
+        .log-sum-item { display:flex; align-items:center; gap:4px; font-size:.62rem; }
+        .log-sum-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+        .dot-E { background:#e74c3c; }
+        .dot-W { background:#f39c12; }
+        .dot-I { background:#3498db; }
+        .dot-conn { background:#2ecc71; }
     </style>
 </head>
 <body>
 
-<div id="update-toast">✓ aplicativo atualizado</div>
+<!-- ── Camada 1: Canvas neon (sempre visível, animado) ── -->
+<canvas id="neon-canvas"></canvas>
+
+<!-- ── Camada 2: Imagem de fundo (carrega depois, opacity 0.5) ── -->
 <div id="bg-layer"></div>
+
+<div id="update-toast">✓ aplicativo atualizado</div>
 
 <header>
     <div class="logo-wrap">
@@ -298,7 +307,6 @@
 <main>
     <!-- ==================== HOME ==================== -->
     <section id="home" class="active">
-
         <div class="info-container">
             <div class="info-box breeze-card">
                 <span class="info-label">CONECTADO</span>
@@ -311,7 +319,6 @@
             </div>
         </div>
 
-        <!-- Botão operadora -->
         <button class="operator-btn" id="operator-btn" onclick="openOperatorModal()">
             <div class="operator-circle">
                 <img id="op-circle-img"
@@ -333,7 +340,6 @@
             </div>
             <span class="app-version">NETSIMON v2.0</span>
         </div>
-
     </section>
 
     <!-- ==================== CONFIG ==================== -->
@@ -354,15 +360,10 @@
     </section>
 </main>
 
-<!-- ── Botão de LOG (canto inferior ESQUERDO) ── -->
 <button id="log-btn" onclick="openLogModal()" title="Log do app">📋</button>
-
-<!-- ── Botão SSH (canto inferior DIREITO) ── -->
 <button id="ssh-cred-btn" onclick="openSshPopup(true)" title="Credenciais SSH">🔑</button>
 
-<!-- ================================================================
-     MODAL DE OPERADORAS
-     ================================================================ -->
+<!-- Modal operadoras -->
 <div id="operator-modal" class="bottom-modal" onclick="handleModalBackdrop(event)">
     <div class="modal-sheet">
         <div class="modal-handle"></div>
@@ -375,31 +376,22 @@
     </div>
 </div>
 
-<!-- ================================================================
-     POPUP DE CREDENCIAIS SSH
-     ================================================================ -->
+<!-- Popup SSH -->
 <div id="ssh-popup-overlay" onclick="handleSshOverlayClick(event)">
-    <div class="ssh-popup" id="ssh-popup">
+    <div class="ssh-popup">
         <div class="ssh-popup-icon">🔐</div>
         <h3 id="ssh-popup-title">ACESSO SSH</h3>
-        <p class="ssh-popup-sub" id="ssh-popup-sub">
-            Insira suas credenciais para conectar via SSH.<br>
-            Elas serão salvas para uso futuro.
-        </p>
-        <div class="ssh-saved-info" id="ssh-saved-badge" style="display:none">
-            <span>✓</span><span>Credenciais salvas — edite se necessário</span>
-        </div>
+        <p class="ssh-popup-sub" id="ssh-popup-sub">Insira suas credenciais para conectar via SSH.<br>Elas serão salvas para uso futuro.</p>
+        <div class="ssh-saved-info" id="ssh-saved-badge" style="display:none"><span>✓</span><span>Credenciais salvas — edite se necessário</span></div>
         <div class="ssh-error-msg" id="ssh-error-msg">Usuário e senha são obrigatórios.</div>
         <div class="ssh-field-group">
             <div>
                 <span class="ssh-field-label">Usuário SSH</span>
-                <input type="text" class="ssh-field" id="ssh-username" placeholder="ex: netsimon"
-                       autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+                <input type="text" class="ssh-field" id="ssh-username" placeholder="ex: netsimon" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
             </div>
             <div class="ssh-field-wrap">
                 <span class="ssh-field-label">Senha SSH</span>
-                <input type="password" class="ssh-field" id="ssh-password" placeholder="••••••••"
-                       autocomplete="current-password"/>
+                <input type="password" class="ssh-field" id="ssh-password" placeholder="••••••••" autocomplete="current-password"/>
                 <button class="pwd-toggle" onclick="togglePwd()" id="pwd-toggle-btn" type="button">👁</button>
             </div>
         </div>
@@ -410,24 +402,164 @@
     </div>
 </div>
 
-<!-- ================================================================
-     MODAL DE LOG
-     ================================================================ -->
+<!-- Modal Log -->
 <div id="log-modal">
     <div class="log-header">
-        <span class="log-title">LOG DO APP</span>
+        <span class="log-title">📡 LOG DO APP</span>
         <div class="log-actions">
             <button class="log-btn-small" onclick="refreshLog()">↻ ATUALIZAR</button>
             <button id="log-close-btn" onclick="closeLogModal()">✕</button>
         </div>
     </div>
-    <div id="log-content">Carregando...</div>
+    <!-- Resumo rápido no topo -->
+    <div class="log-summary" id="log-summary" style="display:none">
+        <div class="log-sum-item"><div class="log-sum-dot dot-E"></div><span id="sum-e">0 erros</span></div>
+        <div class="log-sum-item"><div class="log-sum-dot dot-W"></div><span id="sum-w">0 avisos</span></div>
+        <div class="log-sum-item"><div class="log-sum-dot dot-I"></div><span id="sum-i">0 info</span></div>
+        <div class="log-sum-item"><div class="log-sum-dot dot-conn"></div><span id="sum-conn">Sem conexão</span></div>
+    </div>
+    <div id="log-content"></div>
 </div>
 
 <script>
-    // =========================================================================
+    // =============================================================================
+    // LINHAS NEON — rastro 400% maior (trail de 120 pontos vs 30 antes)
+    // Canvas fica na camada z-index:1, abaixo da imagem de fundo (z-index:2)
+    // mas acima do fundo preto sólido. As linhas CONTINUAM visíveis mesmo depois
+    // que a imagem carregar porque o bg-layer (z-index:2) tem opacity:0.5,
+    // deixando o neon (z-index:1) aparecer através dela.
+    // =============================================================================
+    (function() {
+        var canvas = document.getElementById('neon-canvas');
+        var ctx    = canvas.getContext('2d');
+
+        var COLORS = [
+            'rgba(0,123,255,',    // azul elétrico
+            'rgba(111,0,255,',    // roxo
+            'rgba(255,0,200,',    // magenta
+            'rgba(0,255,180,',    // verde neon
+            'rgba(0,220,255,',    // ciano
+            'rgba(255,60,120,',   // rosa
+            'rgba(255,160,0,',    // laranja
+            'rgba(80,255,80,'     // verde
+        ];
+
+        var lines   = [];
+        var NUM_LINES = 12;
+        var TRAIL_LEN = 120;  // 400% do original (era 30)
+
+        function resize() {
+            canvas.width  = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        function createLine() {
+            var w = canvas.width  || window.innerWidth;
+            var h = canvas.height || window.innerHeight;
+
+            var angle  = Math.random() * Math.PI * 2;
+            var speed  = 0.8 + Math.random() * 2.2;
+            var color  = COLORS[Math.floor(Math.random() * COLORS.length)];
+            var alpha  = 0.35 + Math.random() * 0.55;
+            var width  = 1.2 + Math.random() * 3.0;
+            var glow   = 6 + Math.random() * 22;
+
+            var side = Math.floor(Math.random() * 4);
+            var extra = TRAIL_LEN * speed;
+            var x, y;
+            if      (side === 0) { x = Math.random() * w; y = -extra; }
+            else if (side === 1) { x = w + extra;          y = Math.random() * h; }
+            else if (side === 2) { x = Math.random() * w; y = h + extra; }
+            else                 { x = -extra;             y = Math.random() * h; }
+
+            return {
+                x: x, y: y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                color: color, alpha: alpha, width: width, glow: glow,
+                age: 0,
+                maxAge: 300 + Math.random() * 400,
+                trail: []
+            };
+        }
+
+        function init() {
+            lines = [];
+            for (var i = 0; i < NUM_LINES; i++) {
+                var l = createLine();
+                l.age = Math.random() * l.maxAge;
+                lines.push(l);
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            for (var i = 0; i < lines.length; i++) {
+                var l = lines[i];
+                l.x += l.vx;
+                l.y += l.vy;
+                l.age++;
+
+                l.trail.push({ x: l.x, y: l.y });
+                if (l.trail.length > TRAIL_LEN) l.trail.shift();
+
+                var lifeRatio = l.age / l.maxAge;
+                var fadeFactor = lifeRatio < 0.12
+                    ? lifeRatio / 0.12
+                    : lifeRatio > 0.78
+                        ? 1 - (lifeRatio - 0.78) / 0.22
+                        : 1;
+
+                var curAlpha = l.alpha * fadeFactor;
+
+                if (l.trail.length >= 2) {
+                    var t0 = l.trail[0], tN = l.trail[l.trail.length - 1];
+                    var grad = ctx.createLinearGradient(t0.x, t0.y, tN.x, tN.y);
+                    grad.addColorStop(0,   l.color + '0)');
+                    grad.addColorStop(0.4, l.color + (curAlpha * 0.3).toFixed(2) + ')');
+                    grad.addColorStop(1,   l.color + curAlpha.toFixed(2) + ')');
+
+                    ctx.save();
+                    ctx.shadowColor = l.color + curAlpha.toFixed(2) + ')';
+                    ctx.shadowBlur  = l.glow;
+                    ctx.strokeStyle = grad;
+                    ctx.lineWidth   = l.width;
+                    ctx.lineCap     = 'round';
+                    ctx.lineJoin    = 'round';
+
+                    ctx.beginPath();
+                    ctx.moveTo(l.trail[0].x, l.trail[0].y);
+                    for (var j = 1; j < l.trail.length; j++) ctx.lineTo(l.trail[j].x, l.trail[j].y);
+                    ctx.stroke();
+
+                    // Brilho extra na cabeça
+                    ctx.shadowBlur  = l.glow * 2.5;
+                    ctx.strokeStyle = l.color + Math.min(1, curAlpha * 1.6).toFixed(2) + ')';
+                    ctx.lineWidth   = l.width * 0.45;
+                    var last = l.trail.length - 1;
+                    ctx.beginPath();
+                    ctx.moveTo(l.trail[Math.max(0, last - 8)].x, l.trail[Math.max(0, last - 8)].y);
+                    ctx.lineTo(l.trail[last].x, l.trail[last].y);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+
+                var margin = TRAIL_LEN * (Math.abs(l.vx) + Math.abs(l.vy));
+                var off = l.x < -margin || l.x > canvas.width + margin ||
+                          l.y < -margin || l.y > canvas.height + margin;
+                if (l.age >= l.maxAge || off) lines[i] = createLine();
+            }
+            requestAnimationFrame(draw);
+        }
+
+        window.addEventListener('resize', resize);
+        resize(); init(); draw();
+    })();
+
+    // =============================================================================
     // Storage
-    // =========================================================================
+    // =============================================================================
     function storageSave(key, val) {
         if (window.Android && Android.storageSave) Android.storageSave(key, val);
         else try { localStorage.setItem(key, val); } catch(e) {}
@@ -437,15 +569,14 @@
         try { return localStorage.getItem(key); } catch(e) { return null; }
     }
 
-    // =========================================================================
-    // ⚙️ CONFIGURAÇÃO RÁPIDA (TROCAR FUNDO AQUI) 0— troque o link abaixo para mudar o fundo padrão
-    // Suporta .gif, .jpg, .png, .mp4, .webm — deixe '' para fundo sólido preto
-    // =========================================================================
-    var DEFAULT_BG_URL = 'https://i.pinimg.com/736x/3c/21/40/3c21402c6238f44ee794c469fdf36417.jpg';
+    // =============================================================================
+    // Fundo padrão
+    // =============================================================================
+    var DEFAULT_BG_URL = 'https://i.pinimg.com/736x/a5/fa/ca/a5faca1e1d6901254aefa8ac99e26ea5.jpg';
 
-    // =========================================================================
+    // =============================================================================
     // Estado global
-    // =========================================================================
+    // =============================================================================
     var isConnected       = false;
     var timerInterval     = null;
     var connectTime       = null;
@@ -456,13 +587,11 @@
     var currentCategory = null;
     var selectedOpName  = null;
 
-    var sshPopupMode       = 'connect';
-    var sshPendingUuid     = null;
-    var sshPendingOperator = null;
+    var sshPopupMode = 'connect', sshPendingUuid = null, sshPendingOperator = null;
 
-    // =========================================================================
+    // =============================================================================
     // Init
-    // =========================================================================
+    // =============================================================================
     window.addEventListener('load', function() {
         var savedUuid = storageGet('netsmon_uuid');
         if (savedUuid) document.getElementById('user-uuid').value = savedUuid;
@@ -470,214 +599,180 @@
         var savedConfig = storageGet('netsmon_config');
         if (savedConfig) document.getElementById('config-input').value = savedConfig;
 
-        var savedGif = storageGet('netsmon_bg');
-        applyBackground(savedGif || DEFAULT_BG_URL);
+        var bgUrl = storageGet('netsmon_bg') || DEFAULT_BG_URL;
         if (document.getElementById('gif-url-input'))
-            document.getElementById('gif-url-input').value = savedGif || DEFAULT_BG_URL;
+            document.getElementById('gif-url-input').value = bgUrl;
+        applyBackground(bgUrl);
 
         var savedOp = storageGet('netsmon_operator');
         if (savedOp) selectedOpName = savedOp;
 
         updateSshCredBtn();
 
-        if (window.Android && Android.checkUpdates) Android.checkUpdates();
+        // ── IP local imediatamente ao abrir o app ──────────────────────────────
+        // Tenta via bridge Android (sem necessidade de conexão)
+        if (window.Android && Android.getLocalIp) {
+            var localIp = Android.getLocalIp();
+            if (localIp && localIp !== '') {
+                document.getElementById('ip-display').textContent = localIp;
+                document.getElementById('ping-display').textContent = 'local';
+            }
+        }
 
+        // ── Carrega operadoras imediatamente via bridge síncrono ───────────────
         if (window.Android && Android.getOperators) {
             try {
                 var json = Android.getOperators();
                 if (json && json !== '[]') {
                     var ops = JSON.parse(json);
-                    onOperatorsReady(ops, selectedOpName || (ops.length > 0 ? ops[0].name : null));
+                    if (ops.length > 0) onOperatorsReady(ops, selectedOpName || ops[0].name);
                 }
             } catch(e) {}
         }
+
+        if (window.Android && Android.checkUpdates) Android.checkUpdates();
     });
 
-    // =========================================================================
+    // =============================================================================
+    // IP local — callback do Kotlin (chamado no onPageFinished)
+    // =============================================================================
+    window.onLocalIp = function(ip) {
+        if (!isConnected && ip) {
+            document.getElementById('ip-display').textContent = ip;
+            document.getElementById('ping-display').textContent = 'local';
+        }
+    };
+
+    // =============================================================================
     // Credenciais SSH
-    // =========================================================================
+    // =============================================================================
     function hasSshCreds() {
-        var u = storageGet('ssh_username');
-        var p = storageGet('ssh_password');
+        var u = storageGet('ssh_username'), p = storageGet('ssh_password');
         return !!(u && u.trim() && p && p.trim());
     }
-
     function updateSshCredBtn() {
         var btn = document.getElementById('ssh-cred-btn');
         if (hasSshCreds()) btn.classList.add('has-creds');
         else btn.classList.remove('has-creds');
     }
-
     function openSshPopup(editMode, uuid, opName) {
-        sshPopupMode       = editMode ? 'edit' : 'connect';
-        sshPendingUuid     = uuid     || null;
-        sshPendingOperator = opName   || null;
-
-        var savedUser = storageGet('ssh_username') || '';
-        var savedPass = storageGet('ssh_password') || '';
-        document.getElementById('ssh-username').value = savedUser;
-        document.getElementById('ssh-password').value = savedPass;
-
+        sshPopupMode = editMode ? 'edit' : 'connect';
+        sshPendingUuid = uuid || null; sshPendingOperator = opName || null;
+        var su = storageGet('ssh_username') || '', sp = storageGet('ssh_password') || '';
+        document.getElementById('ssh-username').value = su;
+        document.getElementById('ssh-password').value = sp;
         if (editMode) {
             document.getElementById('ssh-popup-title').textContent = 'CREDENCIAIS SSH';
-            document.getElementById('ssh-popup-sub').textContent   = 'Edite suas credenciais de acesso SSH.';
-            document.getElementById('ssh-cancel-btn').textContent  = 'FECHAR';
-            document.querySelector('.ssh-btn-confirm').textContent  = 'SALVAR';
+            document.getElementById('ssh-popup-sub').textContent = 'Edite suas credenciais de acesso SSH.';
+            document.getElementById('ssh-cancel-btn').textContent = 'FECHAR';
+            document.querySelector('.ssh-btn-confirm').textContent = 'SALVAR';
         } else {
             document.getElementById('ssh-popup-title').textContent = 'ACESSO SSH NECESSÁRIO';
-            document.getElementById('ssh-popup-sub').textContent   = 'Insira suas credenciais para conectar via SSH.\nSerão salvas para uso futuro.';
-            document.getElementById('ssh-cancel-btn').textContent  = 'CANCELAR';
-            document.querySelector('.ssh-btn-confirm').textContent  = 'SALVAR E CONECTAR';
+            document.getElementById('ssh-popup-sub').textContent = 'Insira suas credenciais para conectar via SSH.\nSerão salvas para uso futuro.';
+            document.getElementById('ssh-cancel-btn').textContent = 'CANCELAR';
+            document.querySelector('.ssh-btn-confirm').textContent = 'SALVAR E CONECTAR';
         }
-
         document.getElementById('ssh-saved-badge').style.display = hasSshCreds() ? 'flex' : 'none';
         document.getElementById('ssh-error-msg').classList.remove('show');
         document.getElementById('ssh-popup-overlay').classList.add('open');
-
-        setTimeout(function() {
-            if (!savedUser) document.getElementById('ssh-username').focus();
-            else if (!savedPass) document.getElementById('ssh-password').focus();
-        }, 300);
+        setTimeout(function() { if (!su) document.getElementById('ssh-username').focus(); else if (!sp) document.getElementById('ssh-password').focus(); }, 300);
     }
-
     function closeSshPopup() {
         document.getElementById('ssh-popup-overlay').classList.remove('open');
         document.getElementById('ssh-password').type = 'password';
         document.getElementById('pwd-toggle-btn').textContent = '👁';
     }
-
     function cancelSshPopup() {
         closeSshPopup();
         if (sshPopupMode === 'connect') resetConnectionBtn();
-        sshPendingUuid = null;
-        sshPendingOperator = null;
+        sshPendingUuid = null; sshPendingOperator = null;
     }
-
     function handleSshOverlayClick(e) {
         if (sshPopupMode === 'connect') return;
         if (e.target === document.getElementById('ssh-popup-overlay')) closeSshPopup();
     }
-
     function togglePwd() {
-        var field = document.getElementById('ssh-password');
-        var btn   = document.getElementById('pwd-toggle-btn');
-        if (field.type === 'password') { field.type = 'text'; btn.textContent = '🙈'; }
-        else { field.type = 'password'; btn.textContent = '👁'; }
+        var f = document.getElementById('ssh-password'), b = document.getElementById('pwd-toggle-btn');
+        if (f.type === 'password') { f.type = 'text'; b.textContent = '🙈'; }
+        else { f.type = 'password'; b.textContent = '👁'; }
     }
-
     function confirmSshCredentials() {
         var user = document.getElementById('ssh-username').value.trim();
         var pass = document.getElementById('ssh-password').value.trim();
-        var errEl = document.getElementById('ssh-error-msg');
-
-        if (!user || !pass) {
-            errEl.textContent = 'Usuário e senha são obrigatórios.';
-            errEl.classList.add('show');
-            return;
-        }
-        errEl.classList.remove('show');
-        storageSave('ssh_username', user);
-        storageSave('ssh_password', pass);
-        updateSshCredBtn();
-        closeSshPopup();
-
+        var err  = document.getElementById('ssh-error-msg');
+        if (!user || !pass) { err.textContent = 'Usuário e senha são obrigatórios.'; err.classList.add('show'); return; }
+        err.classList.remove('show');
+        storageSave('ssh_username', user); storageSave('ssh_password', pass);
+        updateSshCredBtn(); closeSshPopup();
         if (sshPopupMode === 'connect' && sshPendingUuid && sshPendingOperator) {
-            var uuid   = sshPendingUuid;
-            var opName = sshPendingOperator;
-            sshPendingUuid = null;
-            sshPendingOperator = null;
-            if (window.Android && Android.startSshWithCredentials) {
-                Android.startSshWithCredentials(uuid, opName, user, pass);
-            }
+            var u = sshPendingUuid, o = sshPendingOperator;
+            sshPendingUuid = null; sshPendingOperator = null;
+            if (window.Android && Android.startSshWithCredentials) Android.startSshWithCredentials(u, o, user, pass);
         }
     }
-
     window.requestSshCredentials = function(uuid, opName, authFailed) {
         if (authFailed) {
-            storageSave('ssh_username', '');
-            storageSave('ssh_password', '');
+            storageSave('ssh_username', ''); storageSave('ssh_password', '');
             updateSshCredBtn();
             document.getElementById('ssh-popup-sub').textContent = '⚠️ Credenciais incorretas. Tente novamente.';
         }
         openSshPopup(false, uuid, opName);
     };
 
-    // =========================================================================
-    // Operadoras — callback Android
-    // =========================================================================
+    // =============================================================================
+    // Operadoras
+    // =============================================================================
     window.onOperatorsReady = function(operators, defaultOpName) {
         allOperators = operators || [];
-
         var targetName = selectedOpName || defaultOpName || (allOperators.length > 0 ? allOperators[0].name : null);
         if (targetName) {
             var op = allOperators.find(function(o){ return o.name === targetName; });
-            if (op) {
-                selectedOpName = op.name;
-                applySelectedOperator(op);
-                storageSave('netsmon_operator', op.name);
-            }
+            if (op) { selectedOpName = op.name; applySelectedOperator(op); storageSave('netsmon_operator', op.name); }
         }
         renderModal();
     };
-
-    // =========================================================================
-    // Modal operadoras
-    // =========================================================================
     function openOperatorModal() { renderModal(); document.getElementById('operator-modal').classList.add('open'); }
     function closeOperatorModal() { document.getElementById('operator-modal').classList.remove('open'); }
     function handleModalBackdrop(e) { if (e.target === document.getElementById('operator-modal')) closeOperatorModal(); }
-
     function renderModal() {
         if (allOperators.length === 0) return;
         var cats = [];
-        allOperators.forEach(function(op) {
-            if (op.category && op.category.name && cats.indexOf(op.category.name) < 0) cats.push(op.category.name);
-        });
+        allOperators.forEach(function(op){ if (op.category && op.category.name && cats.indexOf(op.category.name) < 0) cats.push(op.category.name); });
         cats.sort();
         if (!currentCategory || cats.indexOf(currentCategory) < 0) currentCategory = cats[0];
-
-        var tabsEl = document.getElementById('cat-tabs');
-        tabsEl.innerHTML = '';
-        cats.forEach(function(cat) {
+        var tabsEl = document.getElementById('cat-tabs'); tabsEl.innerHTML = '';
+        cats.forEach(function(cat){
             var btn = document.createElement('button');
             btn.className = 'cat-tab' + (cat === currentCategory ? ' active' : '');
-            btn.textContent = cat;
-            btn.onclick = function() { selectCategory(cat); };
+            btn.textContent = cat; btn.onclick = function(){ selectCategory(cat); };
             tabsEl.appendChild(btn);
         });
         renderOpList();
     }
-
     function selectCategory(cat) {
         currentCategory = cat;
-        document.querySelectorAll('.cat-tab').forEach(function(t) { t.classList.toggle('active', t.textContent === cat); });
+        document.querySelectorAll('.cat-tab').forEach(function(t){ t.classList.toggle('active', t.textContent === cat); });
         renderOpList();
     }
-
     function renderOpList() {
         var list = document.getElementById('op-list');
-        var filtered = allOperators.filter(function(op) { return op.category && op.category.name === currentCategory; });
-        if (filtered.length === 0) {
-            list.innerHTML = '<div style="text-align:center;padding:24px;color:#333;font-size:.8rem">Nenhuma configuração disponível</div>';
-            return;
-        }
+        var filtered = allOperators.filter(function(op){ return op.category && op.category.name === currentCategory; });
+        if (filtered.length === 0) { list.innerHTML = '<div style="text-align:center;padding:24px;color:#333;font-size:.8rem">Nenhuma configuração disponível</div>'; return; }
         list.innerHTML = '';
-        filtered.forEach(function(op) {
+        filtered.forEach(function(op){
             var item = document.createElement('div');
             item.className = 'op-item' + (op.name === selectedOpName ? ' selected' : '');
-            item.onclick = function() { chooseOperator(op); };
+            item.onclick = function(){ chooseOperator(op); };
             var badge = getBadge(op.mode);
             var iconSrc = op.icon || 'file:///android_asset/operadora.png';
             var desc = op.description ? '<div class="op-desc">' + escHtml(op.description) + '</div>' : '';
-            item.innerHTML =
-                '<img class="op-icon" src="' + iconSrc + '" onerror="this.src=\'file:///android_asset/operadora.png\'">' +
+            item.innerHTML = '<img class="op-icon" src="' + iconSrc + '" onerror="this.src=\'file:///android_asset/operadora.png\'">' +
                 '<div class="op-info"><div class="op-name">' + escHtml(op.name) + '</div>' + desc + '</div>' +
                 '<span class="op-mode-badge ' + badge.cls + '">' + badge.label + '</span>' +
                 '<div class="op-check"></div>';
             list.appendChild(item);
         });
     }
-
     function getBadge(mode) {
         switch((mode||'').toUpperCase()) {
             case 'SSH_DIRECT': return {cls:'badge-ssh',   label:'SSH'};
@@ -686,17 +781,12 @@
             default:           return {cls:'badge-other', label:mode||'?'};
         }
     }
-
-    function escHtml(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-
+    function escHtml(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
     function chooseOperator(op) {
-        selectedOpName = op.name;
-        storageSave('netsmon_operator', op.name);
+        selectedOpName = op.name; storageSave('netsmon_operator', op.name);
         if (window.Android && Android.selectOperator) Android.selectOperator(op.name);
-        applySelectedOperator(op);
-        closeOperatorModal();
+        applySelectedOperator(op); closeOperatorModal();
     }
-
     function applySelectedOperator(op) {
         var img = document.getElementById('op-circle-img');
         if (img && op.icon) { img.src = op.icon; img.onerror = function(){ this.src='file:///android_asset/operadora.png'; }; }
@@ -705,88 +795,117 @@
         renderOpList();
     }
 
-    // =========================================================================
+    // =============================================================================
     // Toast
-    // =========================================================================
+    // =============================================================================
     var toastShown = false, toastTimer = null;
     window.onUpdateComplete = function() {
         if (toastShown) return; toastShown = true;
-        var t = document.getElementById('update-toast');
-        t.classList.add('show');
+        var t = document.getElementById('update-toast'); t.classList.add('show');
         clearTimeout(toastTimer);
         toastTimer = setTimeout(function(){ t.classList.remove('show'); }, 3000);
     };
 
-    // =========================================================================
-    // Background — GIF, imagem ou vídeo MP4/WebM
-    // =========================================================================
+    // =============================================================================
+    // Background — carrega a imagem de forma lazy para não bloquear o neon
+    // A imagem fica em z-index:2 com opacity:0.5, o neon em z-index:1 continua
+    // visível através da imagem semi-transparente.
+    // =============================================================================
     function applyBackground(url) {
-        var bg = document.getElementById('bg-layer');
+        var bg  = document.getElementById('bg-layer');
         var old = document.getElementById('bg-video'); if (old) old.remove();
-        if (!url || !url.trim()) { bg.style.backgroundImage='none'; return; }
+        bg.classList.remove('loaded');
+
+        if (!url || !url.trim()) { bg.style.backgroundImage = 'none'; return; }
         url = url.trim();
+
         if (/\.(mp4|webm|ogg)(\?.*)?$/i.test(url)) {
             bg.style.backgroundImage = 'none';
             var v = document.createElement('video');
-            v.id='bg-video'; v.src=url; v.autoplay=true; v.loop=true; v.muted=true; v.playsInline=true;
-            v.style.cssText='position:fixed;inset:0;z-index:0;width:100%;height:100%;object-fit:cover;opacity:0.18;pointer-events:none';
+            v.id = 'bg-video'; v.src = url; v.autoplay = true; v.loop = true; v.muted = true; v.playsInline = true;
+            v.style.cssText = 'position:fixed;inset:0;z-index:2;width:100%;height:100%;object-fit:cover;opacity:0;pointer-events:none;transition:opacity 0.8s';
             document.body.insertBefore(v, document.body.firstChild);
-        } else { bg.style.backgroundImage="url('"+url+"')"; }
+            v.oncanplay = function() { v.style.opacity = '0.5'; };
+        } else {
+            // Carrega imagem de forma assíncrona para não bloquear o render inicial
+            var img = new Image();
+            img.onload = function() {
+                bg.style.backgroundImage = "url('" + url + "')";
+                bg.classList.add('loaded');  // dispara transição para opacity:0.5
+            };
+            img.onerror = function() {
+                // Se falhar, mantém o neon no fundo preto — sem mensagem de erro
+                bg.style.backgroundImage = 'none';
+            };
+            img.src = url;
+        }
     }
 
-    // =========================================================================
+    // =============================================================================
     // Cronômetro
-    // =========================================================================
+    // =============================================================================
     function startTimer() {
         connectTime = Date.now();
-        timerInterval = setInterval(function() {
+        timerInterval = setInterval(function(){
             var e=Math.floor((Date.now()-connectTime)/1000);
             var h=Math.floor(e/3600),m=Math.floor((e%3600)/60),s=e%60;
             document.getElementById('timer-display').textContent=pad(h)+':'+pad(m)+':'+pad(s);
         }, 1000);
     }
-    function stopTimer() { clearInterval(timerInterval); timerInterval=null; connectTime=null; document.getElementById('timer-display').textContent='--:--:--'; }
-    function pad(n) { return n<10?'0'+n:''+n; }
+    function stopTimer(){ clearInterval(timerInterval); timerInterval=null; connectTime=null; document.getElementById('timer-display').textContent='--:--:--'; }
+    function pad(n){ return n<10?'0'+n:''+n; }
 
-    // =========================================================================
+    // =============================================================================
     // IP / Ping
-    // =========================================================================
+    // =============================================================================
     function requestPing() {
         if (!isConnected) return;
-        document.getElementById('ping-display').textContent='medindo...';
-        document.getElementById('ip-display').textContent='buscando...';
+        document.getElementById('ping-display').textContent = 'medindo...';
+        document.getElementById('ip-display').textContent   = 'buscando...';
         if (window.Android && Android.measurePingNow) Android.measurePingNow();
         clearTimeout(pingFallbackTimer);
-        pingFallbackTimer = setTimeout(function() {
-            if (document.getElementById('ping-display').textContent==='medindo...') fetchIpAndPingFallback();
-        }, 4000);
+        pingFallbackTimer = setTimeout(function(){
+            if (document.getElementById('ping-display').textContent === 'medindo...') fetchIpFallback();
+        }, 5000);
     }
-    function fetchIpAndPingFallback() {
-        var pingEl=document.getElementById('ping-display'), ipEl=document.getElementById('ip-display'), t0=Date.now();
-        fetch('https://api.ipify.org?format=json',{cache:'no-store'})
-            .then(function(r){return r.json();})
-            .then(function(d){ var l=Date.now()-t0; ipEl.textContent=(d&&d.ip)?d.ip:'indisponível'; pingEl.textContent=(d&&d.ip)?l+' ms':'-- ms'; })
-            .catch(function(){ ipEl.textContent='sem acesso'; pingEl.textContent='-- ms'; });
+
+    // Fallback JS para IP público quando Android não conseguir
+    function fetchIpFallback() {
+        var t0 = Date.now();
+        var apis = ['https://api64.ipify.org?format=json', 'https://ipinfo.io/json'];
+        var i = 0;
+        function tryNext() {
+            if (i >= apis.length) {
+                document.getElementById('ip-display').textContent   = 'sem acesso';
+                document.getElementById('ping-display').textContent = '-- ms';
+                return;
+            }
+            fetch(apis[i++], {cache:'no-store'})
+                .then(function(r){ return r.json(); })
+                .then(function(d){
+                    var ip = d && d.ip ? d.ip : null;
+                    document.getElementById('ip-display').textContent   = ip || 'indisponível';
+                    document.getElementById('ping-display').textContent = ip ? (Date.now()-t0)+' ms' : '-- ms';
+                })
+                .catch(tryNext);
+        }
+        tryNext();
     }
 
     window.onSshStatus = function(message) {
         var sl = document.getElementById('status-label');
-        if (sl && isConnected) {
-            sl.innerText = message;
-            sl.classList.remove('error-text');
-            sl.classList.add('connected');
-        }
+        if (sl && isConnected) { sl.innerText = message; sl.classList.remove('error-text'); sl.classList.add('connected'); }
     };
 
     window.onPingResult = function(ping, ip) {
         clearTimeout(pingFallbackTimer);
-        document.getElementById('ping-display').textContent = ping<0?'timeout':ping+' ms';
-        if (ip && ip!=='') document.getElementById('ip-display').textContent = ip;
+        document.getElementById('ping-display').textContent = ping < 0 ? 'timeout' : ping + ' ms';
+        if (ip && ip !== '') document.getElementById('ip-display').textContent = ip;
     };
 
-    // =========================================================================
+    // =============================================================================
     // Estado do túnel
-    // =========================================================================
+    // =============================================================================
     function resetConnectionBtn() {
         var btn=document.getElementById('btn-connection'), sl=document.getElementById('status-label');
         btn.disabled=false; btn.innerText='LIGAR'; btn.classList.remove('active');
@@ -808,31 +927,23 @@
 
             if (state.error === 'ssh_auth_failed') {
                 sl.innerText = 'CREDENCIAIS INVÁLIDAS';
-                var uuid = document.getElementById('user-uuid').value.trim();
-                window.requestSshCredentials(uuid, selectedOpName, true);
-                return;
+                window.requestSshCredentials(document.getElementById('user-uuid').value.trim(), selectedOpName, true); return;
             }
             if (state.error === 'ssh_no_credentials') {
                 sl.innerText = 'CREDENCIAIS SSH NECESSÁRIAS';
-                var uuid = document.getElementById('user-uuid').value.trim();
-                window.requestSshCredentials(uuid, selectedOpName, false);
-                return;
+                window.requestSshCredentials(document.getElementById('user-uuid').value.trim(), selectedOpName, false); return;
             }
 
             var msgs = {
-                import_failed:        'CONFIG INVÁLIDO',
-                xray_start_failed:    'FALHA AO INICIAR XRAY',
-                permission_denied:    'PERMISSÃO NEGADA',
-                exception:            'ERRO INTERNO',
-                ssh_error:            'ERRO SSH',
-                ssh_payload_error:    'ERRO NO HANDSHAKE',
-                ssl_not_implemented:  'SSL PROXY EM BREVE',
-                no_operator_selected: 'SELECIONE UMA OPERADORA',
-                unknown_mode:         'MODO DESCONHECIDO'
+                import_failed:'CONFIG INVÁLIDO', xray_start_failed:'FALHA AO INICIAR XRAY',
+                permission_denied:'PERMISSÃO NEGADA', exception:'ERRO INTERNO',
+                ssh_error:'ERRO SSH', ssh_payload_error:'ERRO NO HANDSHAKE',
+                ssl_not_implemented:'SSL PROXY EM BREVE', no_operator_selected:'SELECIONE UMA OPERADORA',
+                unknown_mode:'MODO DESCONHECIDO'
             };
             var errKey = state.error.startsWith('ssh_error:') ? 'SSH: '+state.error.split(':').slice(1).join(':') : null;
             sl.innerText = errKey || msgs[state.error] || 'ERRO';
-            if (state.error==='import_failed') alert('Não foi possível importar o config. Verifique o JSON.');
+            if (state.error === 'import_failed') alert('Não foi possível importar o config. Verifique o JSON.');
             return;
         }
 
@@ -847,45 +958,37 @@
             btn.innerText='LIGAR'; btn.classList.remove('active');
             sl.innerText=''; sl.classList.remove('connected');
             document.getElementById('ping-display').textContent='-- ms';
-            document.getElementById('ip-display').textContent='--';
+            // Ao desconectar, volta para IP local
+            if (window.Android && Android.getLocalIp) {
+                var localIp = Android.getLocalIp();
+                document.getElementById('ip-display').textContent = localIp || '--';
+                if (localIp) document.getElementById('ping-display').textContent = 'local';
+            } else {
+                document.getElementById('ip-display').textContent = '--';
+            }
         }
     };
 
-    // =========================================================================
+    // =============================================================================
     // Botão ligar / desligar
-    // =========================================================================
+    // =============================================================================
     document.getElementById('btn-connection').onclick = function() {
         var btn=document.getElementById('btn-connection'), sl=document.getElementById('status-label');
         var uuid=document.getElementById('user-uuid').value.trim();
-
         if (!uuid) { alert('Insira sua CHAVE DE ACESSO (UUID)!'); return; }
         if (!uuidPattern.test(uuid)) { alert('UUID inválido.\nFormato: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'); return; }
-
         storageSave('netsmon_uuid', uuid);
 
-        if (btn.innerText==='LIGAR') {
-            if (!selectedOpName && window.Android) {
-                if (!confirm('Nenhuma operadora selecionada. Usar configuração padrão?')) return;
-            }
-
-            var op = allOperators.find(function(o){ return o.name===selectedOpName; });
-            if (op && (op.mode==='SSH_DIRECT' || op.mode==='SLOWDNS') && !hasSshCreds()) {
-                openSshPopup(false, uuid, selectedOpName);
-                return;
-            }
-
-            btn.disabled=true;
-            sl.innerText='CONECTANDO...';
-            sl.classList.add('connected'); sl.classList.remove('error-text');
+        if (btn.innerText === 'LIGAR') {
+            if (!selectedOpName && window.Android) { if (!confirm('Nenhuma operadora selecionada. Usar configuração padrão?')) return; }
+            var op = allOperators.find(function(o){ return o.name === selectedOpName; });
+            if (op && (op.mode === 'SSH_DIRECT' || op.mode === 'SLOWDNS') && !hasSshCreds()) { openSshPopup(false, uuid, selectedOpName); return; }
+            btn.disabled=true; sl.innerText='CONECTANDO...'; sl.classList.add('connected'); sl.classList.remove('error-text');
             document.getElementById('ping-display').textContent='aguarde...';
-
             if (window.Android) {
-                var sshUser = storageGet('ssh_username') || '';
-                var sshPass = storageGet('ssh_password') || '';
+                var sshUser = storageGet('ssh_username') || '', sshPass = storageGet('ssh_password') || '';
                 Android.startTunnelWithCreds(uuid, sshUser, sshPass);
-            } else {
-                setTimeout(function(){ window.onTunnelState({running:true,error:null}); }, 1200);
-            }
+            } else { setTimeout(function(){ window.onTunnelState({running:true,error:null}); }, 1200); }
         } else {
             btn.disabled=true;
             if (window.Android) Android.stopTunnel();
@@ -893,57 +996,132 @@
         }
     };
 
-    // =========================================================================
-    // Modal de Log
-    // =========================================================================
-    function openLogModal() {
-        document.getElementById('log-modal').classList.add('open');
-        refreshLog();
+    // =============================================================================
+    // LOG AMIGÁVEL — estilo HTTP Injector
+    // Exibe: badge de nível, timestamp curto, tag, mensagem
+    // Resumo no topo: contadores de E/W/I e status de conexão
+    // =============================================================================
+    function openLogModal() { document.getElementById('log-modal').classList.add('open'); refreshLog(); }
+    function closeLogModal() { document.getElementById('log-modal').classList.remove('open'); }
+
+    // Regex para parsear linha do logcat no formato "time" (-v time):
+    // "MM-DD HH:MM:SS.mmm PID-TID LEVEL/TAG: message"
+    var LOG_RE = /^(\d{2}-\d{2}\s[\d:.]+)\s+\d+-\d+\s+([VDIWEF])\/([\S]+)\s*:\s*(.*)$/;
+    // Regex alternativo sem PID-TID
+    var LOG_RE2 = /^(\d{2}-\d{2}\s[\d:.]+)\s+([VDIWEF])\/([\S]+)\s*:\s*(.*)$/;
+
+    function parseLogLine(line) {
+        var m = LOG_RE.exec(line) || LOG_RE2.exec(line);
+        if (!m) return null;
+        return { time: m[1].split(' ')[1] || m[1], level: m[2], tag: m[3], msg: m[4] };
     }
 
-    function closeLogModal() {
-        document.getElementById('log-modal').classList.remove('open');
+    function buildLogEntry(p) {
+        var entry = document.createElement('div');
+        entry.className = 'log-entry lvl-' + p.level;
+
+        var badge = document.createElement('span');
+        badge.className = 'log-badge badge-' + p.level;
+        badge.textContent = p.level;
+
+        var meta = document.createElement('span');
+        meta.className = 'log-meta';
+        // Mostra apenas HH:MM:SS (sem milissegundos para economizar espaço)
+        meta.textContent = p.time.split('.')[0];
+
+        var tag = document.createElement('span');
+        tag.className = 'log-tag';
+        // Simplifica tags comuns para nomes legíveis
+        var tagMap = {
+            'WebUiActivity': 'App', 'GoLog': 'Xray', 'SshManager': 'SSH',
+            'V2RayServiceManager': 'V2Ray', 'OperatorManager': 'Ops',
+            'UpdateManager': 'Update', 'AngConfigManager': 'Config'
+        };
+        tag.textContent = tagMap[p.tag] || p.tag.replace('com.v2ray.ang.', '').replace('com.v2ray.ang', '').substring(0, 14);
+        tag.title = p.tag;
+
+        var msg = document.createElement('span');
+        msg.className = 'log-msg';
+        // Simplifica mensagens comuns para texto legível
+        var text = p.msg
+            .replace(/java\.lang\.\w+Exception:/g, 'Erro:')
+            .replace(/at com\.v2ray\.ang\.[^\s]+/g, '')
+            .replace(/at android\.[^\s]+/g, '')
+            .replace(/at kotlin\.[^\s]+/g, '')
+            .replace(/at kotlinx\.[^\s]+/g, '')
+            .replace(/\t/g, '')
+            .trim();
+        msg.textContent = text || p.msg;
+
+        entry.appendChild(badge); entry.appendChild(meta);
+        entry.appendChild(tag);   entry.appendChild(msg);
+        return entry;
     }
 
     function refreshLog() {
-        var el = document.getElementById('log-content');
-        el.textContent = 'Carregando...';
+        var el  = document.getElementById('log-content');
+        var sum = document.getElementById('log-summary');
+        el.innerHTML = '<div style="color:#3a4a5a;padding:12px;font-size:.65rem">Carregando...</div>';
+
         setTimeout(function() {
+            var raw = '';
             try {
-                var raw = (window.Android && Android.getAppLog) ? Android.getAppLog(300) : 'Android bridge não disponível.';
-                el.innerHTML = '';
-                var lines = raw.split('\n');
-                lines.forEach(function(line) {
-                    var span = document.createElement('div');
-                    if (line.indexOf(' E/') >= 0 || line.indexOf(' E ') >= 0) span.className = 'log-error';
-                    else if (line.indexOf(' W/') >= 0 || line.indexOf(' W ') >= 0) span.className = 'log-warn';
-                    else if (line.indexOf(' I/') >= 0 || line.indexOf(' I ') >= 0) span.className = 'log-info';
-                    span.textContent = line;
-                    el.appendChild(span);
-                });
-                el.scrollTop = el.scrollHeight;
-            } catch(e) {
-                el.textContent = 'Erro ao ler log: ' + e.message;
-            }
+                raw = (window.Android && Android.getAppLog) ? Android.getAppLog(400) : 'Android bridge não disponível.';
+            } catch(e) { raw = 'Erro ao ler log: ' + e.message; }
+
+            el.innerHTML = '';
+            var lines = raw.split('\n');
+            var counts = { E:0, W:0, I:0, D:0, V:0 };
+            var connEvents = [];
+
+            lines.forEach(function(line) {
+                if (!line.trim()) return;
+                var p = parseLogLine(line);
+                if (p) {
+                    counts[p.level] = (counts[p.level] || 0) + 1;
+                    // Captura eventos de conexão para o resumo
+                    if (p.level === 'I' && (p.msg.indexOf('iniciado') >= 0 || p.msg.indexOf('Xray') >= 0 || p.msg.indexOf('started') >= 0)) {
+                        connEvents.push(p.time.split('.')[0] + ' ' + p.msg.substring(0, 40));
+                    }
+                    el.appendChild(buildLogEntry(p));
+                } else {
+                    // Linha sem formato reconhecido (stack trace, etc.) — exibe de forma discreta
+                    if (line.trim().startsWith('at ') || line.trim().startsWith('java.') || line.trim().startsWith('kotlin.')) return; // oculta stack traces
+                    var div = document.createElement('div');
+                    div.style.cssText = 'padding:2px 10px;color:#2a3a4a;font-size:.58rem;word-break:break-all;';
+                    div.textContent = line;
+                    el.appendChild(div);
+                }
+            });
+
+            // Atualiza resumo
+            document.getElementById('sum-e').textContent = counts.E + (counts.E === 1 ? ' erro' : ' erros');
+            document.getElementById('sum-w').textContent = counts.W + (counts.W === 1 ? ' aviso' : ' avisos');
+            document.getElementById('sum-i').textContent = counts.I + ' info';
+            var lastConn = connEvents.length > 0 ? connEvents[connEvents.length - 1].substring(0, 35) : 'Sem conexão';
+            document.getElementById('sum-conn').textContent = lastConn;
+            sum.style.display = 'flex';
+
+            el.scrollTop = el.scrollHeight;
         }, 50);
     }
 
-    // =========================================================================
+    // =============================================================================
     // Navegação
-    // =========================================================================
+    // =============================================================================
     function goToConfig() { window.history.pushState({page:'config'},'Config'); showPage('config-screen'); }
     function goBack() { window.history.back(); }
     window.onpopstate = function() { showPage('home'); };
     function showPage(id) { document.querySelectorAll('section').forEach(function(s){ s.classList.remove('active'); }); document.getElementById(id).classList.add('active'); }
 
-    // =========================================================================
+    // =============================================================================
     // Salvar config avançado
-    // =========================================================================
+    // =============================================================================
     function saveConfig() {
-        var val=document.getElementById('config-input').value.trim();
+        var val = document.getElementById('config-input').value.trim();
         if (val && !val.startsWith('vless://') && !val.includes('"outbounds"')) { alert('Config não reconhecido.\nUse VLESS ou JSON com "outbounds".'); return; }
         storageSave('netsmon_config', val);
-        var gif=document.getElementById('gif-url-input').value.trim();
+        var gif = document.getElementById('gif-url-input').value.trim();
         storageSave('netsmon_bg', gif); applyBackground(gif);
         alert('Configurações salvas!'); goBack();
     }
