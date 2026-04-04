@@ -1,0 +1,80 @@
+[
+  {
+    "name": "Vivo Planos",
+    "description": "easy-controle-pós",
+    "mode": "SSH_DIRECT",
+    "tls_version": "TLSv1.2",
+    "sorter": 1,
+    "status": "ACTIVE",
+    "auth": {
+      "username": null,
+      "password": null,
+      "v2ray_uuid": null
+    },
+    "category": {
+      "name": "VIVO",
+      "color": "#80000000",
+      "sorter": 2
+    },
+    "config_openvpn": null,
+    "config_payload": {
+      "payload": "GET / HTTP/1.1[crlf]Host: 1.netsimon.fun[crlf]Connection: Upgrade[crlf]Upgrade: Websocket[crlf][crlf]",
+      "sni": null
+    },
+    "config_v2ray": null,
+    "dns_server": {
+      "dns1": "1.1.1.1",
+      "dns2": "8.8.8.8"
+    },
+    "icon": "https://mir-s3-cdn-cf.behance.net/projects/max_808/761365158559005.Y3JvcCwxMzUwLDEwNTUsMCwxMw.png",
+    "proxy": {
+      "host": null,
+      "port": null
+    },
+    "server": {
+      "host": "104.17.237.25#104.17.239.25#104.17.241.25#104.17.240.25#104.18.10.75#104.18.11.75#104.18.14.102#104.18.15.102#104.18.18.210#104.18.19.210#104.18.43.102#104.18.43.123#104.18.248.37#104.18.249.37#104.26.11.32#104.26.10.32#104.26.10.121#104.26.11.121#172.64.144.133#172.64.144.154",
+      "port": 80
+    },
+    "udp_ports": [7300],
+    "url_check_user": "https://painel.netsimon.fun/checkuser/dtunnel.php?user="
+  },
+  {
+    "name": "Vivo Planos 2",
+    "description": "easy-controle-pós",
+    "mode": "SSH_DIRECT",
+    "tls_version": "TLSv1.2",
+    "sorter": 2,
+    "status": "ACTIVE",
+    "auth": {
+      "username": null,
+      "password": null,
+      "v2ray_uuid": null
+    },
+    "category": {
+      "name": "VIVO",
+      "color": "#80000000",
+      "sorter": 2
+    },
+    "config_openvpn": null,
+    "config_payload": {
+      "payload": "GET / HTTP/1.1[lf]Host: 1.netsimon.fun[lf]Upgrade: Websocket[lf][lf]",
+      "sni": null
+    },
+    "config_v2ray": null,
+    "dns_server": {
+      "dns1": "1.1.1.1",
+      "dns2": "8.8.8.8"
+    },
+    "icon": "https://mir-s3-cdn-cf.behance.net/projects/max_808/761365158559005.Y3JvcCwxMzUwLDEwNTUsMCwxMw.png",
+    "proxy": {
+      "host": null,
+      "port": null
+    },
+    "server": {
+      "host": "104.17.237.25#104.17.239.25#104.17.241.25#104.17.240.25#104.18.10.75#104.18.11.75#104.18.14.102#104.18.15.102#104.18.18.210#104.18.19.210#104.18.43.102#104.18.43.123#104.18.248.37#104.18.249.37#104.26.11.32#104.26.10.32#104.26.10.121#104.26.11.121#172.64.144.133#172.64.144.154",
+      "port": 8080
+    },
+    "udp_ports": [7300],
+    "url_check_user": "https://painel.netsimon.fun/checkuser/dtunnel.php?user="
+  }
+]
