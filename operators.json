@@ -26,13 +26,13 @@
       "dns1": "1.1.1.1",
       "dns2": "8.8.8.8"
     },
-    "icon": "https://mir-s3-cdn-cf.behance.net/projects/max_808/761365158559005.Y3JvcCwxMzUwLDEwNTUsMCwxMw.png",
+    "icon": "file:///android_asset/vivo.png",
     "proxy": {
       "host": null,
       "port": null
     },
     "server": {
-      "host": "104.17.237.25#104.17.239.25#104.17.241.25#104.17.240.25#104.18.10.75#104.18.11.75#104.18.14.102#104.18.15.102#104.18.18.210#104.18.19.210#104.18.43.102#104.18.43.123#104.18.248.37#104.18.249.37#104.26.11.32#104.26.10.32#104.26.10.121#104.26.11.121#172.64.144.133#172.64.144.154",
+      "host": "104.26.12.205#104.18.10.75#104.18.15.102#104.18.14.102#104.18.11.75",
       "port": 80
     },
     "udp_ports": [7300],
@@ -65,7 +65,7 @@
       "dns1": "1.1.1.1",
       "dns2": "8.8.8.8"
     },
-    "icon": "https://mir-s3-cdn-cf.behance.net/projects/max_808/761365158559005.Y3JvcCwxMzUwLDEwNTUsMCwxMw.png",
+    "icon": "file:///android_asset/vivo.png",
     "proxy": {
       "host": null,
       "port": null
