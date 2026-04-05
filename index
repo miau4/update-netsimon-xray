@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+    <title>NETSIMON</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI',sans-serif; }
+        html, body { height:100%; overflow:hidden; background:#000; color:#fff; }
+        :root {
+            --purple: #6F00FF;
+            --blue:   #001F3F;
+            --glow:   #007BFF;
+            --green:  #2ecc71;
+            --red:    #e74c3c;
+        }
+
+        #neon-canvas { position:fixed; inset:0; z-index:1; pointer-events:none; }
+        #bg-layer {
+            position:fixed; inset:0; z-index:2;
+            background-size:cover; background-position:center; background-repeat:no-repeat;
+            opacity:0; pointer-events:none; transition:opacity 0.8s ease;
+        }
+        #bg-layer.loaded { opacity:0.25; }
+        body { display:flex; flex-direction:column; align-items:center; position:relative; z-index:3; }
+
+        @keyframes colorBreeze {
+            0%   { background-position:0% 50%; }
+            50%  { background-position:100% 50%; }
+            100% { background-position:0% 50%; }
+        }
+        @keyframes fadeIn  { from{opacity:0} to{opacity:1} }
+        @keyframes twinkle {
+            0%,100% { opacity:1; filter:brightness(1) drop-shadow(0 0 6px #007BFF); }
+            40%     { opacity:.6; filter:brightness(.7) drop-shadow(0 0 2px #007BFF); }
+            70%     { opacity:.9; filter:brightness(1.2) drop-shadow(0 0 12px #6F00FF); }
+        }
+        @keyframes pulseBlue  { 0%,100%{box-shadow:0 0 28px rgba(0,123,255,.6);} 50%{box-shadow:0 0 50px rgba(0,123,255,.95);} }
+        @keyframes pulseGreen { 0%,100%{box-shadow:0 0 28px rgba(46,204,113,.6);} 50%{box-shadow:0 0 50px rgba(46,204,113,.95);} }
+        @keyframes slideUp { from{transform:translateY(100%);opacity:0;} to{transform:translateY(0);opacity:1;} }
+        @keyframes popIn   { from{transform:translate(-50%,-50%) scale(.85);opacity:0;} to{transform:translate(-50%,-50%) scale(1);opacity:1;} }
+
+        #update-toast {
+            position:fixed; bottom:28px; left:50%; transform:translateX(-50%);
+            background:rgba(15,15,15,.95); border:1px solid #2ecc71; color:#2ecc71;
+            font-size:.72rem; font-weight:700; letter-spacing:1.5px; text-transform:uppercase;
+            padding:8px 22px; border-radius:30px; white-space:nowrap; pointer-events:none;
+            z-index:9999; opacity:0; box-shadow:0 0 14px rgba(46,204,113,.3); transition:opacity .45s ease;
+        }
+        #update-toast.show { opacity:1; }
+
+        header { padding:18px 0 6px 0; flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:2px; }
+        .logo-wrap { position:relative; display:inline-block; cursor:pointer; }
+        .logo-wrap img {
+            width:140px; display:block;
+            animation:twinkle 3.5s ease-in-out infinite;
+            filter:drop-shadow(0 0 18px rgba(0,123,255,.7));
+        }
+        .logo-wrap::after {
+            content:''; position:absolute; inset:-12px;
+            background:radial-gradient(ellipse at center, rgba(0,123,255,.35) 0%, transparent 70%);
+            pointer-events:none; animation:pulseBlue 3.5s ease-in-out infinite; border-radius:50%;
+        }
+
+        main { width:100%; max-width:450px; flex-grow:1; display:flex; flex-direction:column; padding:10px 14px; }
+        section { display:none; width:100%; height:100%; flex-direction:column; align-items:center; justify-content:space-between; padding-bottom:14px; }
+        section.active { display:flex; animation:fadeIn .4s; }
+
+        .breeze-card {
+            background:linear-gradient(135deg,var(--purple),#000,var(--blue),#000,var(--purple));
+            background-size:300% 300%; animation:colorBreeze 8s linear infinite;
+            border:1px solid var(--glow); box-shadow:0 0 12px rgba(0,123,255,.3);
+            border-radius:10px; text-align:center;
+        }
+        .info-container { display:flex; gap:10px; width:100%; }
+        .info-box { flex:1; padding:8px 10px; }
+        .info-label { font-size:.58rem; color:#aaa; text-transform:uppercase; font-weight:bold; margin-bottom:2px; display:block; letter-spacing:1px; }
+        .info-value { font-size:.85rem; font-family:monospace; font-weight:bold; }
+
+        .operator-btn { display:flex; flex-direction:column; align-items:center; gap:6px; cursor:pointer; margin:8px 0; background:none; border:none; color:#fff; }
+        .operator-circle {
+            width:56px; height:56px; border-radius:50%; background:#0a1628;
+            display:flex; align-items:center; justify-content:center;
+            border:2px solid var(--glow); box-shadow:0 0 14px rgba(0,123,255,.5);
+            overflow:hidden; transition:box-shadow .2s;
+        }
+        .operator-circle:active { box-shadow:0 0 24px rgba(0,123,255,.9); }
+        .operator-circle img { width:100%; height:100%; object-fit:cover; }
+        .operator-name { font-size:.62rem; color:#aaa; text-transform:uppercase; letter-spacing:1px; }
+
+        #btn-connection {
+            width:155px; height:155px; border-radius:50%;
+            border:4px solid var(--glow); color:#fff; font-size:1.25rem; font-weight:900; cursor:pointer;
+            background:linear-gradient(135deg,var(--purple),#000,var(--blue),#000,var(--purple));
+            background-size:300% 300%;
+            animation:colorBreeze 5s linear infinite, pulseBlue 3s ease-in-out infinite;
+            letter-spacing:2px; transition:border-color .3s;
+        }
+        #btn-connection.active { border-color:var(--green); animation:colorBreeze 5s linear infinite, pulseGreen 3s ease-in-out infinite; }
+        #btn-connection.connecting { border-color:#f39c12; animation:colorBreeze 5s linear infinite; font-size:1rem; }
+
+        .status-text { font-size:.95rem; font-weight:900; margin-top:7px; height:20px; text-transform:uppercase; letter-spacing:1px; }
+        .connected  { color:var(--green); text-shadow:0 0 10px var(--green); }
+        .error-text { color:var(--red); }
+        .warn-text  { color:#f39c12; }
+
+        .uuid-box { width:100%; background:transparent; border:none; color:#fff; font-family:monospace; font-size:.92rem; text-align:center; font-weight:bold; outline:none; }
+        .app-version { font-size:.55rem; color:#333; letter-spacing:2px; text-transform:uppercase; text-align:center; margin-top:5px; display:block; }
+
+        /* ── Seção UUID (escondida para SSH) ── */
+        #uuid-section { width:100%; transition:opacity .3s; }
+        #uuid-section.hidden { display:none; }
+
+        .config-area { width:100%; flex:1; display:flex; flex-direction:column; gap:12px; padding:10px; }
+        textarea { height:30%; background:#0a0a0a; border:1px solid #333; color:#2ecc71; padding:12px; font-family:monospace; font-size:.8rem; border-radius:10px; resize:none; outline:none; }
+        .gif-field { background:#0a0a0a; border:1px solid #333; color:#aaa; padding:10px 12px; font-family:monospace; font-size:.78rem; border-radius:10px; outline:none; width:100%; }
+        .gif-field::placeholder { color:#444; }
+        .btn-save { background:var(--glow); color:#fff; border:none; padding:13px; border-radius:10px; font-weight:bold; cursor:pointer; font-size:.9rem; }
+        .btn-cancel { background:transparent; color:#555; border:none; padding:13px; font-weight:bold; cursor:pointer; margin-bottom:12px; }
+        .field-label { font-size:.6rem; color:#666; text-transform:uppercase; letter-spacing:1px; margin-bottom:2px; }
+
+        #log-btn {
+            position:fixed; bottom:18px; left:18px; z-index:500;
+            width:36px; height:36px; border-radius:50%;
+            background:rgba(10,10,30,.85); border:1px solid #1a2540; color:#334; font-size:.9rem;
+            display:flex; align-items:center; justify-content:center;
+            cursor:pointer; transition:all .2s; box-shadow:0 2px 8px rgba(0,0,0,.5);
+        }
+        #log-btn:hover, #log-btn:active { border-color:var(--glow); color:var(--glow); }
+
+        #ssh-cred-btn {
+            position:fixed; bottom:18px; right:18px; z-index:500;
+            width:36px; height:36px; border-radius:50%;
+            background:rgba(10,10,30,.85); border:1px solid #1a2540; color:#334; font-size:.9rem;
+            display:flex; align-items:center; justify-content:center;
+            cursor:pointer; transition:all .2s; box-shadow:0 2px 8px rgba(0,0,0,.5); position:relative;
+        }
+        #ssh-cred-btn:hover, #ssh-cred-btn:active { border-color:var(--glow); color:var(--glow); }
+        #ssh-cred-btn.has-creds::after { content:''; position:absolute; top:2px; right:2px; width:8px; height:8px; border-radius:50%; background:var(--green); border:1px solid #000; }
+
+        .bottom-modal { display:none; position:fixed; inset:0; z-index:1000; background:rgba(0,0,0,.75); align-items:flex-end; }
+        .bottom-modal.open { display:flex; animation:fadeIn .2s; }
+        .modal-sheet { width:100%; max-width:450px; margin:0 auto; background:#0a0a18; border-top:1px solid #222; border-radius:18px 18px 0 0; padding:0 0 24px; animation:slideUp .3s ease; max-height:80vh; overflow-y:auto; }
+        .modal-handle { width:40px; height:4px; background:#333; border-radius:2px; margin:12px auto 16px; }
+        .modal-title { text-align:center; font-size:.7rem; color:#555; text-transform:uppercase; letter-spacing:2px; margin-bottom:16px; }
+        .cat-tabs { display:flex; gap:8px; padding:0 16px; overflow-x:auto; scrollbar-width:none; margin-bottom:14px; }
+        .cat-tabs::-webkit-scrollbar { display:none; }
+        .cat-tab { flex-shrink:0; padding:6px 16px; border:1px solid #333; border-radius:20px; background:transparent; color:#777; font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; cursor:pointer; transition:all .2s; }
+        .cat-tab.active { border-color:var(--glow); color:#fff; background:rgba(0,123,255,.15); }
+        .op-list { padding:0 12px; display:flex; flex-direction:column; gap:8px; }
+        .op-item { display:flex; align-items:center; gap:12px; padding:12px 14px; background:#0f1626; border:1px solid #1a2540; border-radius:12px; cursor:pointer; transition:all .2s; position:relative; }
+        .op-item:active { border-color:var(--glow); background:#0a1a35; }
+        .op-item.selected { border-color:var(--green); background:rgba(46,204,113,.07); }
+        .op-icon { width:40px; height:40px; border-radius:50%; object-fit:cover; border:1px solid #222; flex-shrink:0; background:#0a0a0a; }
+        .op-info { flex:1; min-width:0; }
+        .op-name { font-size:.82rem; font-weight:700; color:#eee; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .op-desc { font-size:.65rem; color:#555; margin-top:2px; }
+        .op-mode-badge { font-size:.55rem; font-weight:700; letter-spacing:1px; padding:3px 8px; border-radius:8px; text-transform:uppercase; flex-shrink:0; }
+        .badge-ssh   { background:rgba(0,123,255,.2); color:#4a9eff; border:1px solid #1a4a80; }
+        .badge-v2ray { background:rgba(111,0,255,.2); color:#a855f7; border:1px solid #4a1a80; }
+        .badge-ssl   { background:rgba(46,204,113,.2); color:#2ecc71; border:1px solid #1a5035; }
+        .badge-other { background:rgba(255,255,255,.1); color:#aaa; border:1px solid #333; }
+        .op-check { width:18px; height:18px; border-radius:50%; border:2px solid #333; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:.65rem; transition:all .2s; }
+        .op-item.selected .op-check { background:var(--green); border-color:var(--green); }
+        .op-item.selected .op-check::after { content:'✓'; color:#000; font-weight:900; }
+        .modal-close-btn { display:block; width:calc(100% - 32px); margin:16px 16px 0; padding:14px; background:transparent; border:1px solid #222; color:#555; border-radius:12px; font-size:.85rem; cursor:pointer; }
+
+        #ssh-popup-overlay { display:none; position:fixed; inset:0; z-index:2000; background:rgba(0,0,0,.85); align-items:center; justify-content:center; }
+        #ssh-popup-overlay.open { display:flex; }
+        .ssh-popup { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); width:calc(100% - 40px); max-width:360px; background:#0a0a1a; border:1px solid #1a2a50; border-radius:18px; padding:24px 20px 20px; animation:popIn .25s ease; z-index:2001; }
+        .ssh-popup-icon { width:48px; height:48px; border-radius:50%; background:rgba(0,123,255,.15); border:1px solid #1a4a80; display:flex; align-items:center; justify-content:center; font-size:1.4rem; margin:0 auto 14px; }
+        .ssh-popup h3 { text-align:center; font-size:.9rem; font-weight:700; letter-spacing:1px; margin-bottom:4px; }
+        .ssh-popup .ssh-popup-sub { text-align:center; font-size:.68rem; color:#555; margin-bottom:20px; line-height:1.5; }
+        .ssh-field-group { display:flex; flex-direction:column; gap:10px; margin-bottom:18px; }
+        .ssh-field-wrap { position:relative; }
+        .ssh-field-label { font-size:.58rem; color:#555; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px; display:block; }
+        .ssh-field { width:100%; background:#050510; border:1px solid #1a2540; color:#fff; padding:12px 14px; border-radius:10px; font-family:monospace; font-size:.88rem; outline:none; transition:border-color .2s; }
+        .ssh-field:focus { border-color:var(--glow); }
+        .ssh-field::placeholder { color:#2a3040; }
+        .pwd-toggle { position:absolute; right:12px; top:50%; transform:translateY(-50%); background:none; border:none; color:#444; cursor:pointer; font-size:.8rem; padding:4px; }
+        .ssh-popup-btns { display:flex; gap:10px; }
+        .ssh-btn-confirm { flex:1; background:var(--glow); color:#fff; border:none; padding:13px; border-radius:10px; font-weight:700; font-size:.88rem; cursor:pointer; }
+        .ssh-btn-cancel { flex:0 0 auto; background:transparent; color:#444; border:1px solid #1a2540; padding:13px 18px; border-radius:10px; font-size:.88rem; cursor:pointer; }
+        .ssh-error-msg { display:none; font-size:.68rem; color:var(--red); text-align:center; margin-top:-10px; margin-bottom:10px; }
+        .ssh-error-msg.show { display:block; }
+        .ssh-saved-info { display:flex; align-items:center; gap:8px; background:rgba(46,204,113,.08); border:1px solid rgba(46,204,113,.2); border-radius:8px; padding:8px 12px; margin-bottom:16px; font-size:.68rem; color:#2ecc71; }
+
+        #log-modal { display:none; position:fixed; inset:0; z-index:3000; background:rgba(0,0,0,.97); flex-direction:column; }
+        #log-modal.open { display:flex; animation:fadeIn .15s; }
+        .log-header { display:flex; align-items:center; justify-content:space-between; padding:10px 12px 8px; border-bottom:1px solid #1a2540; background:#03050f; flex-shrink:0; }
+        .log-title { font-size:.7rem; font-weight:700; color:#4a9eff; text-transform:uppercase; letter-spacing:2px; }
+        .log-actions { display:flex; gap:6px; align-items:center; }
+        .log-action-btn { background:transparent; border:1px solid #1a2540; color:#556; padding:4px 10px; border-radius:6px; font-size:.62rem; cursor:pointer; font-weight:700; transition:all .15s; }
+        .log-action-btn:active { border-color:var(--glow); color:var(--glow); }
+        #log-close-btn { background:transparent; border:none; color:#556; font-size:1.1rem; cursor:pointer; padding:4px 8px; }
+        .log-status-bar { display:flex; align-items:center; gap:10px; padding:5px 12px; background:#020408; border-bottom:1px solid #0d1520; flex-shrink:0; flex-wrap:wrap; }
+        .log-live-dot { width:7px; height:7px; border-radius:50%; background:#2ecc71; animation:blink 1.2s ease-in-out infinite; flex-shrink:0; }
+        @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:.2;} }
+        .log-live-label { font-size:.6rem; color:#2ecc71; font-weight:700; letter-spacing:1px; }
+        .log-count-badge { font-size:.58rem; color:#3a5a7a; margin-left:auto; }
+        #log-content { flex:1; overflow-y:auto; padding:4px 0; font-family:'Courier New', monospace; font-size:.62rem; scroll-behavior:smooth; }
+        .log-entry { display:flex; align-items:flex-start; padding:3px 10px; border-bottom:1px solid rgba(255,255,255,.025); gap:0; }
+        .log-badge { flex-shrink:0; width:18px; text-align:center; font-size:.56rem; font-weight:900; border-radius:2px; padding:1px 0; margin-right:6px; margin-top:1px; }
+        .badge-E { background:rgba(231,76,60,.3); color:#e74c3c; }
+        .badge-W { background:rgba(243,156,18,.2); color:#f39c12; }
+        .badge-I { background:rgba(52,152,219,.2); color:#5dade2; }
+        .badge-D { background:rgba(100,100,100,.15); color:#666; }
+        .badge-V { background:transparent; color:#333; }
+        .log-time  { flex-shrink:0; color:#1a3050; font-size:.57rem; margin-right:5px; margin-top:1px; white-space:nowrap; }
+        .log-tag   { flex-shrink:0; color:#1e4a6a; font-size:.59rem; font-weight:700; margin-right:5px; margin-top:1px; max-width:70px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .log-msg   { flex:1; word-break:break-all; white-space:pre-wrap; line-height:1.35; }
+        .lvl-E .log-msg { color:#c0392b; }
+        .lvl-W .log-msg { color:#d4ac0d; }
+        .lvl-I .log-msg { color:#7fb3d3; }
+        .lvl-D .log-msg { color:#4a6070; }
+        .lvl-V .log-msg { color:#2a3a48; }
+    </style>
+</head>
+<body>
+
+<canvas id="neon-canvas"></canvas>
+<div id="bg-layer"></div>
+<div id="update-toast"></div>
+
+<header>
+    <div class="logo-wrap" onclick="checkUpdatesManual()" title="Toque para verificar atualizações">
+        <img id="logo-img"
+             src="file:///android_asset/logo.png"
+             onerror="this.onerror=null;this.src='https://i.ibb.co/ccC6BNw/ei-1699404424073-removebg-preview.png'"/>
+    </div>
+</header>
+
+<main>
+    <!-- HOME -->
+    <section id="home" class="active">
+        <div class="info-container">
+            <div class="info-box breeze-card">
+                <span class="info-label">CONECTADO</span>
+                <span class="info-value" id="timer-display">--:--:--</span>
+            </div>
+            <div class="info-box breeze-card" onclick="requestPing()" style="cursor:pointer">
+                <span class="info-label">IP LOCAL / PING</span>
+                <span class="info-value" id="ip-display" style="font-size:.7rem;display:block;line-height:1.4">--</span>
+                <span class="info-value" id="ping-display" style="font-size:.82rem">-- ms</span>
+            </div>
+        </div>
+
+        <button class="operator-btn" id="operator-btn" onclick="openOperatorModal()">
+            <div class="operator-circle">
+                <img id="op-circle-img"
+                     src="file:///android_asset/operadora.png"
+                     onerror="this.onerror=null;this.src='https://i.ibb.co/gLrmNT8G/imagem-2026-03-27-111301414-removebg-preview.png'"/>
+            </div>
+            <span class="operator-name" id="op-selected-label">SELECIONAR</span>
+        </button>
+
+        <div style="text-align:center">
+            <button id="btn-connection">LIGAR</button>
+            <div id="status-label" class="status-text"></div>
+        </div>
+
+        <!-- UUID — visível apenas para V2RAY, escondido para SSH_DIRECT -->
+        <div id="uuid-section" style="width:100%">
+            <span class="info-label" style="text-align:center;width:100%;display:block;margin-bottom:5px">CHAVE DE ACESSO (UUID)</span>
+            <div class="breeze-card" style="padding:14px">
+                <input type="text" class="uuid-box" id="user-uuid" placeholder="Cole sua CHAVE aqui">
+            </div>
+            <span class="app-version">NETSIMON v2.0</span>
+        </div>
+    </section>
+
+    <!-- CONFIG -->
+    <section id="config-screen">
+        <h3 style="margin-top:10px;font-size:.95rem;letter-spacing:1px">CONFIGURAÇÕES AVANÇADAS</h3>
+        <div class="config-area">
+            <div>
+                <div class="field-label">Config JSON ou VLESS personalizado (opcional)</div>
+                <textarea id="config-input" placeholder="Deixe vazio para usar a config padrão do sistema."></textarea>
+            </div>
+            <div>
+                <div class="field-label">Link do GIF / imagem / vídeo de fundo (opcional)</div>
+                <input type="url" class="gif-field" id="gif-url-input" placeholder="https://exemplo.com/fundo.gif">
+            </div>
+            <button class="btn-save" onclick="saveConfig()">SALVAR E VOLTAR</button>
+            <button class="btn-cancel" onclick="handleAndroidBack()">CANCELAR</button>
+        </div>
+    </section>
+</main>
+
+<button id="log-btn" onclick="openLogModal()" title="Log do app">📋</button>
+<button id="ssh-cred-btn" onclick="openSshPopup(true)" title="Credenciais SSH" style="position:fixed">🔑</button>
+
+<!-- Modal operadoras -->
+<div id="operator-modal" class="bottom-modal" onclick="handleModalBackdrop(event)">
+    <div class="modal-sheet">
+        <div class="modal-handle"></div>
+        <div class="modal-title">Selecione sua operadora</div>
+        <div class="cat-tabs" id="cat-tabs"></div>
+        <div class="op-list" id="op-list">
+            <div style="text-align:center;padding:24px;color:#333;font-size:.8rem">Carregando...</div>
+        </div>
+        <button class="modal-close-btn" onclick="closeOperatorModal()">FECHAR</button>
+    </div>
+</div>
+
+<!-- Popup SSH — sem campo UUID -->
+<div id="ssh-popup-overlay" onclick="handleSshOverlayClick(event)">
+    <div class="ssh-popup">
+        <div class="ssh-popup-icon">🔐</div>
+        <h3 id="ssh-popup-title">ACESSO SSH</h3>
+        <p class="ssh-popup-sub" id="ssh-popup-sub">Insira suas credenciais para conectar via SSH.<br>Elas serão salvas para uso futuro.</p>
+        <div class="ssh-saved-info" id="ssh-saved-badge" style="display:none"><span>✓</span><span>Credenciais salvas</span></div>
+        <div class="ssh-error-msg" id="ssh-error-msg">Usuário e senha são obrigatórios.</div>
+        <div class="ssh-field-group">
+            <div>
+                <span class="ssh-field-label">Usuário SSH</span>
+                <input type="text" class="ssh-field" id="ssh-username" placeholder="ex: netsimon"
+                       autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+            </div>
+            <div class="ssh-field-wrap">
+                <span class="ssh-field-label">Senha SSH</span>
+                <input type="password" class="ssh-field" id="ssh-password" placeholder="••••••••"
+                       autocomplete="current-password"/>
+                <button class="pwd-toggle" onclick="togglePwd()" id="pwd-toggle-btn" type="button">👁</button>
+            </div>
+        </div>
+        <div class="ssh-popup-btns">
+            <button class="ssh-btn-cancel" id="ssh-cancel-btn" onclick="cancelSshPopup()">CANCELAR</button>
+            <button class="ssh-btn-confirm" onclick="confirmSshCredentials()">SALVAR E CONECTAR</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Log -->
+<div id="log-modal">
+    <div class="log-header">
+        <span class="log-title">📡 LOG EM TEMPO REAL</span>
+        <div class="log-actions">
+            <button class="log-action-btn" onclick="copyLog()">📋 COPIAR</button>
+            <button class="log-action-btn" onclick="clearLog()" style="color:#e74c3c;border-color:#5a1010;">🗑 LIMPAR</button>
+            <button id="log-close-btn" onclick="closeLogModal()">✕</button>
+        </div>
+    </div>
+    <div class="log-status-bar">
+        <div class="log-live-dot"></div>
+        <span class="log-live-label">AO VIVO</span>
+        <span class="log-count-badge" id="log-count">0 linhas</span>
+    </div>
+    <div id="log-content"></div>
+</div>
+
+<script>
+    // =============================================================================
+    // NEON CANVAS
+    // =============================================================================
+    (function() {
+        var canvas = document.getElementById('neon-canvas');
+        var ctx = canvas.getContext('2d');
+        var COLORS = ['rgba(0,123,255,','rgba(111,0,255,','rgba(255,0,200,','rgba(0,255,180,','rgba(0,220,255,','rgba(255,60,120,','rgba(255,160,0,','rgba(80,255,80,'];
+        var lines = [], NUM_LINES = 12, TRAIL_LEN = 120;
+        function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        function createLine() {
+            var w = canvas.width || window.innerWidth, h = canvas.height || window.innerHeight;
+            var angle = Math.random() * Math.PI * 2, speed = 0.8 + Math.random() * 2.2;
+            var color = COLORS[Math.floor(Math.random() * COLORS.length)];
+            var alpha = 0.35 + Math.random() * 0.55, width = 1.2 + Math.random() * 3, glow = 6 + Math.random() * 22;
+            var side = Math.floor(Math.random() * 4), extra = TRAIL_LEN * speed, x, y;
+            if (side===0){x=Math.random()*w;y=-extra;}else if(side===1){x=w+extra;y=Math.random()*h;}else if(side===2){x=Math.random()*w;y=h+extra;}else{x=-extra;y=Math.random()*h;}
+            return { x, y, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed, color, alpha, width, glow, age:0, maxAge:300+Math.random()*400, trail:[] };
+        }
+        function init() { lines = []; for(var i=0;i<NUM_LINES;i++){var l=createLine();l.age=Math.random()*l.maxAge;lines.push(l);} }
+        function draw() {
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            for(var i=0;i<lines.length;i++){
+                var l=lines[i];l.x+=l.vx;l.y+=l.vy;l.age++;
+                l.trail.push({x:l.x,y:l.y});if(l.trail.length>TRAIL_LEN)l.trail.shift();
+                var lr=l.age/l.maxAge,ff=lr<0.12?lr/0.12:lr>0.78?1-(lr-0.78)/0.22:1,ca=l.alpha*ff;
+                if(l.trail.length>=2){
+                    var t0=l.trail[0],tN=l.trail[l.trail.length-1];
+                    var g=ctx.createLinearGradient(t0.x,t0.y,tN.x,tN.y);
+                    g.addColorStop(0,l.color+'0)');g.addColorStop(0.4,l.color+(ca*0.3).toFixed(2)+')');g.addColorStop(1,l.color+ca.toFixed(2)+')');
+                    ctx.save();ctx.shadowColor=l.color+ca.toFixed(2)+')';ctx.shadowBlur=l.glow;ctx.strokeStyle=g;ctx.lineWidth=l.width;ctx.lineCap='round';ctx.lineJoin='round';
+                    ctx.beginPath();ctx.moveTo(l.trail[0].x,l.trail[0].y);
+                    for(var j=1;j<l.trail.length;j++)ctx.lineTo(l.trail[j].x,l.trail[j].y);
+                    ctx.stroke();
+                    ctx.shadowBlur=l.glow*2.5;ctx.strokeStyle=l.color+Math.min(1,ca*1.6).toFixed(2)+')';ctx.lineWidth=l.width*0.45;
+                    var last=l.trail.length-1;
+                    ctx.beginPath();ctx.moveTo(l.trail[Math.max(0,last-8)].x,l.trail[Math.max(0,last-8)].y);ctx.lineTo(l.trail[last].x,l.trail[last].y);ctx.stroke();
+                    ctx.restore();
+                }
+                var margin=TRAIL_LEN*(Math.abs(l.vx)+Math.abs(l.vy));
+                if(l.age>=l.maxAge||l.x<-margin||l.x>canvas.width+margin||l.y<-margin||l.y>canvas.height+margin)lines[i]=createLine();
+            }
+            requestAnimationFrame(draw);
+        }
+        window.addEventListener('resize',resize);resize();init();draw();
+    })();
+
+    // =============================================================================
+    // Storage
+    // =============================================================================
+    function storageSave(k,v){if(window.Android&&Android.storageSave)Android.storageSave(k,v);else try{localStorage.setItem(k,v);}catch(e){}}
+    function storageGet(k){if(window.Android&&Android.storageGet)return Android.storageGet(k);try{return localStorage.getItem(k);}catch(e){return null;}}
+
+    // =============================================================================
+    // Estado global
+    // =============================================================================
+    var isConnected=false, isSshConnecting=false;
+    var timerInterval=null, connectTime=null, pingFallbackTimer=null;
+    var uuidPattern=/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+    var allOperators=[], currentCategory=null, selectedOpName=null;
+    var sshPopupMode='connect', sshPendingOperator=null;
+    var logLineCount=0, logAutoScroll=true;
+
+    // =============================================================================
+    // Back handler Android
+    // =============================================================================
+    window.handleAndroidBack = function() {
+        if (document.getElementById('log-modal').classList.contains('open')) { closeLogModal(); return; }
+        if (document.getElementById('ssh-popup-overlay').classList.contains('open')) { closeSshPopup(); return; }
+        if (document.getElementById('operator-modal').classList.contains('open')) { closeOperatorModal(); return; }
+        var active = document.querySelector('section.active');
+        if (active && active.id !== 'home') { showPage('home'); return; }
+    };
+
+    // =============================================================================
+    // Init
+    // =============================================================================
+    window.addEventListener('load', function() {
+        var savedUuid = storageGet('netsmon_uuid');
+        if (savedUuid) document.getElementById('user-uuid').value = savedUuid;
+        var savedConfig = storageGet('netsmon_config');
+        if (savedConfig) document.getElementById('config-input').value = savedConfig;
+        var savedOp = storageGet('netsmon_operator');
+        if (savedOp) selectedOpName = savedOp;
+        updateSshCredBtn();
+
+        var bgUrl = storageGet('netsmon_bg') || '';
+        if (document.getElementById('gif-url-input')) document.getElementById('gif-url-input').value = bgUrl;
+        applyBackgroundLocal();
+        if (bgUrl) applyBackgroundOnline(bgUrl);
+
+        if (window.Android && Android.getLocalIp) {
+            var localIp = Android.getLocalIp();
+            if (localIp) { document.getElementById('ip-display').textContent = localIp; document.getElementById('ping-display').textContent = 'local'; }
+        }
+
+        if (window.Android && Android.getOperators) {
+            try {
+                var json = Android.getOperators();
+                if (json && json !== '[]') { var ops = JSON.parse(json); if (ops.length > 0) onOperatorsReady(ops, selectedOpName || ops[0].name); }
+            } catch(e) {}
+        }
+
+        if (window.Android && Android.checkUpdates) Android.checkUpdates();
+    });
+
+    // =============================================================================
+    // Fundo
+    // =============================================================================
+    function applyBackgroundLocal() {
+        var bg = document.getElementById('bg-layer');
+        var localImg = new Image();
+        localImg.onload = function() { bg.style.backgroundImage = "url('file:///android_asset/fundo.png')"; bg.classList.add('loaded'); };
+        localImg.src = 'file:///android_asset/fundo.png';
+    }
+    function applyBackgroundOnline(url) {
+        if (!url || !url.trim()) return;
+        url = url.trim();
+        var bg = document.getElementById('bg-layer');
+        var old = document.getElementById('bg-video'); if (old) old.remove();
+        if (/\.(mp4|webm|ogg)(\?.*)?$/i.test(url)) {
+            bg.style.backgroundImage = 'none'; bg.classList.remove('loaded');
+            var v = document.createElement('video');
+            v.id='bg-video';v.src=url;v.autoplay=true;v.loop=true;v.muted=true;v.playsInline=true;
+            v.style.cssText='position:fixed;inset:0;z-index:2;width:100%;height:100%;object-fit:cover;opacity:0;pointer-events:none;transition:opacity 0.8s';
+            document.body.insertBefore(v, document.body.firstChild);
+            v.oncanplay = function(){ v.style.opacity='0.5'; };
+        } else {
+            var img = new Image();
+            img.onload = function() { bg.style.backgroundImage="url('"+url+"')"; bg.classList.add('loaded'); };
+            img.src = url;
+        }
+    }
+    function applyBackground(url) {
+        var old = document.getElementById('bg-video'); if (old) old.remove();
+        if (!url || !url.trim()) { applyBackgroundLocal(); return; }
+        applyBackgroundOnline(url.trim());
+    }
+
+    // =============================================================================
+    // IP local
+    // =============================================================================
+    window.onLocalIp = function(ip) {
+        if (ip) {
+            document.getElementById('ip-display').textContent = ip;
+            if (!isConnected) document.getElementById('ping-display').textContent = 'local';
+        }
+    };
+
+    // =============================================================================
+    // CREDENCIAIS SSH — sem UUID
+    // =============================================================================
+    function hasSshCreds() { var u=storageGet('ssh_username'),p=storageGet('ssh_password'); return !!(u&&u.trim()&&p&&p.trim()); }
+    function updateSshCredBtn() { var b=document.getElementById('ssh-cred-btn'); if(hasSshCreds())b.classList.add('has-creds');else b.classList.remove('has-creds'); }
+
+    function openSshPopup(editMode, uuid, opName) {
+        // uuid ignorado — SSH não usa UUID
+        sshPopupMode = editMode ? 'edit' : 'connect';
+        sshPendingOperator = opName || null;
+        var su = storageGet('ssh_username') || '', sp = storageGet('ssh_password') || '';
+        document.getElementById('ssh-username').value = su;
+        document.getElementById('ssh-password').value = sp;
+        if (editMode) {
+            document.getElementById('ssh-popup-title').textContent = 'CREDENCIAIS SSH';
+            document.getElementById('ssh-popup-sub').textContent = 'Edite suas credenciais de acesso SSH.';
+            document.getElementById('ssh-cancel-btn').textContent = 'FECHAR';
+            document.querySelector('.ssh-btn-confirm').textContent = 'SALVAR';
+        } else {
+            document.getElementById('ssh-popup-title').textContent = 'ACESSO SSH NECESSÁRIO';
+            document.getElementById('ssh-popup-sub').textContent = 'Insira suas credenciais para conectar via SSH.\nSerão salvas para uso futuro.';
+            document.getElementById('ssh-cancel-btn').textContent = 'CANCELAR';
+            document.querySelector('.ssh-btn-confirm').textContent = 'SALVAR E CONECTAR';
+        }
+        document.getElementById('ssh-saved-badge').style.display = hasSshCreds() ? 'flex' : 'none';
+        document.getElementById('ssh-error-msg').classList.remove('show');
+        document.getElementById('ssh-popup-overlay').classList.add('open');
+        setTimeout(function() { if(!su) document.getElementById('ssh-username').focus(); else if(!sp) document.getElementById('ssh-password').focus(); }, 300);
+    }
+
+    function closeSshPopup() {
+        document.getElementById('ssh-popup-overlay').classList.remove('open');
+        document.getElementById('ssh-password').type = 'password';
+        document.getElementById('pwd-toggle-btn').textContent = '👁';
+    }
+    function cancelSshPopup() { closeSshPopup(); if (sshPopupMode==='connect') resetConnectionBtn(); sshPendingOperator = null; }
+    function handleSshOverlayClick(e) { if (sshPopupMode==='connect') return; if (e.target===document.getElementById('ssh-popup-overlay')) closeSshPopup(); }
+    function togglePwd() { var f=document.getElementById('ssh-password'),b=document.getElementById('pwd-toggle-btn'); if(f.type==='password'){f.type='text';b.textContent='🙈';}else{f.type='password';b.textContent='👁';} }
+
+    function confirmSshCredentials() {
+        var user = document.getElementById('ssh-username').value.trim();
+        var pass = document.getElementById('ssh-password').value.trim();
+        var err  = document.getElementById('ssh-error-msg');
+        if (!user || !pass) { err.textContent='Usuário e senha são obrigatórios.'; err.classList.add('show'); return; }
+        err.classList.remove('show');
+        storageSave('ssh_username', user); storageSave('ssh_password', pass);
+        updateSshCredBtn(); closeSshPopup();
+
+        if (sshPopupMode === 'connect' && sshPendingOperator) {
+            var o = sshPendingOperator; sshPendingOperator = null;
+            // Chama startSshWithCredentials — sem UUID
+            if (window.Android && Android.startSshWithCredentials) {
+                Android.startSshWithCredentials(o, user, pass);
+            }
+        }
+    }
+
+    // Chamado pelo Kotlin — opName apenas, sem UUID
+    window.requestSshCredentials = function(opName, authFailed) {
+        if (authFailed) {
+            storageSave('ssh_username', ''); storageSave('ssh_password', '');
+            updateSshCredBtn();
+            document.getElementById('ssh-popup-sub').textContent = '⚠️ Credenciais incorretas. Tente novamente.';
+        }
+        openSshPopup(false, null, opName);
+    };
+
+    // =============================================================================
+    // OPERADORAS
+    // =============================================================================
+    window.onOperatorsReady = function(operators, defaultOpName) {
+        allOperators = operators || [];
+        var targetName = selectedOpName || defaultOpName || (allOperators.length>0?allOperators[0].name:null);
+        if (targetName) { var op=allOperators.find(function(o){return o.name===targetName;}); if(op){selectedOpName=op.name;applySelectedOperator(op);storageSave('netsmon_operator',op.name);} }
+        renderModal();
+    };
+
+    function openOperatorModal() { renderModal(); document.getElementById('operator-modal').classList.add('open'); }
+    function closeOperatorModal() { document.getElementById('operator-modal').classList.remove('open'); }
+    function handleModalBackdrop(e) { if (e.target===document.getElementById('operator-modal')) closeOperatorModal(); }
+
+    function renderModal() {
+        if (!allOperators.length) return;
+        var cats = []; allOperators.forEach(function(op){if(op.category&&op.category.name&&cats.indexOf(op.category.name)<0)cats.push(op.category.name);}); cats.sort();
+        if (!currentCategory || cats.indexOf(currentCategory)<0) currentCategory = cats[0];
+        var tabsEl = document.getElementById('cat-tabs'); tabsEl.innerHTML = '';
+        cats.forEach(function(cat){var btn=document.createElement('button');btn.className='cat-tab'+(cat===currentCategory?' active':'');btn.textContent=cat;btn.onclick=function(){selectCategory(cat);};tabsEl.appendChild(btn);});
+        renderOpList();
+    }
+    function selectCategory(cat) { currentCategory=cat; document.querySelectorAll('.cat-tab').forEach(function(t){t.classList.toggle('active',t.textContent===cat);}); renderOpList(); }
+    function renderOpList() {
+        var list=document.getElementById('op-list');
+        var filtered=allOperators.filter(function(op){return op.category&&op.category.name===currentCategory;});
+        if (!filtered.length) { list.innerHTML='<div style="text-align:center;padding:24px;color:#333;font-size:.8rem">Nenhuma configuração disponível</div>'; return; }
+        list.innerHTML = '';
+        filtered.forEach(function(op){
+            var item=document.createElement('div'); item.className='op-item'+(op.name===selectedOpName?' selected':''); item.onclick=function(){chooseOperator(op);};
+            var badge=getBadge(op.mode), iconSrc=op.icon||'file:///android_asset/operadora.png', desc=op.description?'<div class="op-desc">'+escHtml(op.description)+'</div>':'';
+            item.innerHTML='<img class="op-icon" src="'+iconSrc+'" onerror="this.src=\'file:///android_asset/operadora.png\'"><div class="op-info"><div class="op-name">'+escHtml(op.name)+'</div>'+desc+'</div><span class="op-mode-badge '+badge.cls+'">'+badge.label+'</span><div class="op-check"></div>';
+            list.appendChild(item);
+        });
+    }
+    function getBadge(mode){switch((mode||'').toUpperCase()){case'SSH_DIRECT':return{cls:'badge-ssh',label:'SSH'};case'V2RAY':return{cls:'badge-v2ray',label:'V2RAY'};case'SSL_PROXY':return{cls:'badge-ssl',label:'SSL'};default:return{cls:'badge-other',label:mode||'?'};}}
+    function escHtml(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+    function chooseOperator(op) { selectedOpName=op.name; storageSave('netsmon_operator',op.name); if(window.Android&&Android.selectOperator)Android.selectOperator(op.name); applySelectedOperator(op); closeOperatorModal(); }
+
+    function applySelectedOperator(op) {
+        var img = document.getElementById('op-circle-img');
+        if (img && op.icon) { img.src=op.icon; img.onerror=function(){this.src='file:///android_asset/operadora.png';}; }
+        var label = document.getElementById('op-selected-label');
+        if (label) label.textContent = op.name.toUpperCase();
+
+        // Mostra/esconde o campo UUID conforme o modo
+        var uuidSection = document.getElementById('uuid-section');
+        if (uuidSection) {
+            if (op.mode === 'SSH_DIRECT') {
+                uuidSection.classList.add('hidden');
+            } else {
+                uuidSection.classList.remove('hidden');
+            }
+        }
+        renderOpList();
+    }
+
+    // =============================================================================
+    // ATUALIZAÇÃO
+    // =============================================================================
+    var checkingUpdates = false;
+    function checkUpdatesManual() {
+        if (checkingUpdates) return;
+        checkingUpdates = true;
+        showToast('⏳ VERIFICANDO ATUALIZAÇÕES...', '#aaa', false);
+        if (window.Android && Android.checkUpdates) Android.checkUpdates();
+        setTimeout(function(){ checkingUpdates = false; }, 15000);
+    }
+    function showToast(msg, color, autoHide) {
+        var t = document.getElementById('update-toast');
+        t.textContent = msg; t.style.borderColor = color||'#2ecc71'; t.style.color = color||'#2ecc71';
+        t.classList.add('show');
+        if (autoHide !== false) setTimeout(function(){ t.classList.remove('show'); }, 3000);
+    }
+    window.onUpdateComplete = function(type) { checkingUpdates=false; showToast('✓ APLICATIVO ATUALIZADO','#2ecc71',true); };
+    window.onUpdateAlreadyUpToDate = function() { checkingUpdates=false; showToast('✓ JÁ ESTÁ ATUALIZADO','#4a9eff',true); };
+
+    // =============================================================================
+    // CRONÔMETRO
+    // =============================================================================
+    function startTimer(){connectTime=Date.now();timerInterval=setInterval(function(){var e=Math.floor((Date.now()-connectTime)/1000),h=Math.floor(e/3600),m=Math.floor((e%3600)/60),s=e%60;document.getElementById('timer-display').textContent=pad(h)+':'+pad(m)+':'+pad(s);},1000);}
+    function stopTimer(){clearInterval(timerInterval);timerInterval=null;connectTime=null;document.getElementById('timer-display').textContent='--:--:--';}
+    function pad(n){return n<10?'0'+n:''+n;}
+
+    // =============================================================================
+    // PING / IP
+    // =============================================================================
+    function requestPing(){
+        if(!isConnected)return;
+        document.getElementById('ping-display').textContent='medindo...';
+        if(window.Android&&Android.measurePingNow)Android.measurePingNow();
+        clearTimeout(pingFallbackTimer);
+        pingFallbackTimer=setTimeout(function(){if(document.getElementById('ping-display').textContent==='medindo...')document.getElementById('ping-display').textContent='timeout';},5000);
+    }
+    window.onSshStatus=function(message){var sl=document.getElementById('status-label');if(sl&&isConnected){sl.innerText=message;sl.classList.remove('error-text');sl.classList.add('connected');}};
+    window.onPingResult=function(ping,ip){
+        clearTimeout(pingFallbackTimer);
+        document.getElementById('ping-display').textContent=ping<0?'timeout':ping+' ms';
+    };
+
+    // =============================================================================
+    // ESTADO DO TÚNEL
+    // =============================================================================
+    function resetConnectionBtn(){
+        var btn=document.getElementById('btn-connection'),sl=document.getElementById('status-label');
+        btn.disabled=false;btn.classList.remove('active','connecting');btn.innerText='LIGAR';
+        sl.innerText='';sl.classList.remove('connected','error-text','warn-text');
+        document.getElementById('ping-display').textContent='-- ms';
+        isSshConnecting=false;
+    }
+
+    window.onTunnelState = function(state) {
+        var btn=document.getElementById('btn-connection'),sl=document.getElementById('status-label');
+        btn.disabled = false;
+
+        if (state.error) {
+            isConnected=false; isSshConnecting=false; stopTimer(); clearTimeout(pingFallbackTimer);
+            btn.classList.remove('active','connecting'); btn.innerText='LIGAR';
+            sl.classList.remove('connected','warn-text'); sl.classList.add('error-text');
+            document.getElementById('ping-display').textContent='-- ms';
+            document.getElementById('ip-display').textContent='--';
+
+            // Auth fail — abre popup SSH sem UUID
+            if (state.error==='ssh_auth_failed') {
+                sl.innerText='CREDENCIAIS INVÁLIDAS';
+                window.requestSshCredentials(selectedOpName, true);
+                return;
+            }
+            if (state.error==='ssh_no_credentials') {
+                sl.innerText='CREDENCIAIS SSH NECESSÁRIAS';
+                window.requestSshCredentials(selectedOpName, false);
+                return;
+            }
+
+            var msgs={
+                import_failed:'CONFIG INVÁLIDO', xray_start_failed:'FALHA AO INICIAR XRAY',
+                permission_denied:'PERMISSÃO NEGADA', ssh_error:'ERRO SSH',
+                ssh_payload_error:'ERRO NO HANDSHAKE', ssl_not_implemented:'SSL PROXY EM BREVE',
+                no_operator_selected:'SELECIONE UMA OPERADORA', socks5_not_ready:'SOCKS5 NÃO DISPONÍVEL',
+                vpn_establish_failed:'FALHA AO CRIAR TÚNEL', vpn_revoked:'VPN REVOGADA'
+            };
+            var errKey = state.error.startsWith('ssh_error:') ? 'SSH: '+state.error.split(':').slice(1).join(':') : null;
+            sl.innerText = errKey || msgs[state.error] || 'ERRO';
+
+            // Restaura IP local
+            if(window.Android&&Android.getLocalIp){var li=Android.getLocalIp();if(li){document.getElementById('ip-display').textContent=li;document.getElementById('ping-display').textContent='local';}}
+            return;
+        }
+
+        sl.classList.remove('error-text','warn-text');
+        if (state.running) {
+            isConnected=true; isSshConnecting=false; startTimer();
+            btn.classList.add('active'); btn.classList.remove('connecting'); btn.innerText='PARAR';
+            sl.innerText='CONECTADO'; sl.classList.add('connected');
+            document.getElementById('ping-display').textContent='medindo...';
+            if(window.Android&&Android.measurePingNow)Android.measurePingNow();
+        } else {
+            isConnected=false; isSshConnecting=false; stopTimer(); clearTimeout(pingFallbackTimer);
+            btn.classList.remove('active','connecting'); btn.innerText='LIGAR';
+            sl.innerText=''; sl.classList.remove('connected');
+            document.getElementById('ping-display').textContent='-- ms';
+            if(window.Android&&Android.getLocalIp){var li=Android.getLocalIp();document.getElementById('ip-display').textContent=li||'--';if(li)document.getElementById('ping-display').textContent='local';}
+            else document.getElementById('ip-display').textContent='--';
+        }
+    };
+
+    // =============================================================================
+    // BOTÃO LIGAR / PARAR
+    // =============================================================================
+    document.getElementById('btn-connection').onclick = function() {
+        var btn=document.getElementById('btn-connection'), sl=document.getElementById('status-label');
+
+        // Cancela tentativa SSH em andamento
+        if (isSshConnecting) {
+            if (window.Android) Android.stopTunnel();
+            else resetConnectionBtn();
+            return;
+        }
+
+        if (btn.innerText === 'LIGAR') {
+            var op = allOperators.find(function(o){ return o.name === selectedOpName; });
+            var isSsh = op && op.mode === 'SSH_DIRECT';
+
+            if (isSsh) {
+                // ── Modo SSH: não precisa de UUID ──────────────────────────────
+                if (!hasSshCreds()) {
+                    openSshPopup(false, null, selectedOpName);
+                    return;
+                }
+                isSshConnecting = true;
+                btn.classList.add('connecting'); btn.classList.remove('active');
+                btn.innerText = 'CANCELAR';
+                sl.innerText = 'CONECTANDO...'; sl.classList.add('warn-text'); sl.classList.remove('error-text','connected');
+                document.getElementById('ping-display').textContent = 'aguarde...';
+
+                if (window.Android) {
+                    var sshUser = storageGet('ssh_username') || '';
+                    var sshPass = storageGet('ssh_password') || '';
+                    Android.startSshWithCredentials(selectedOpName, sshUser, sshPass);
+                }
+
+            } else {
+                // ── Modo V2RAY/outros: precisa de UUID ─────────────────────────
+                var uuid = document.getElementById('user-uuid').value.trim();
+                if (!uuid) { alert('Insira sua CHAVE DE ACESSO (UUID)!'); return; }
+                if (!uuidPattern.test(uuid)) { alert('UUID inválido.\nFormato: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'); return; }
+                storageSave('netsmon_uuid', uuid);
+
+                if (!selectedOpName && window.Android) {
+                    if (!confirm('Nenhuma operadora selecionada. Usar configuração padrão?')) return;
+                }
+
+                btn.disabled = true;
+                sl.innerText = 'CONECTANDO...'; sl.classList.add('connected'); sl.classList.remove('error-text');
+                document.getElementById('ping-display').textContent = 'aguarde...';
+
+                if (window.Android) {
+                    var sshUser = storageGet('ssh_username') || '';
+                    var sshPass = storageGet('ssh_password') || '';
+                    Android.startTunnelWithCreds(uuid, sshUser, sshPass);
+                } else {
+                    setTimeout(function(){ window.onTunnelState({running:true,error:null}); }, 1200);
+                }
+            }
+
+        } else if (btn.innerText === 'PARAR') {
+            btn.disabled = true;
+            if (window.Android) Android.stopTunnel();
+            else window.onTunnelState({running:false,error:null});
+        }
+    };
+
+    // =============================================================================
+    // LOG EM TEMPO REAL
+    // =============================================================================
+    var LOG_RE=/^(\d{2}-\d{2}\s[\d:.]+)\s+\d+-\d+\s+([VDIWEF])\/([\S]+)\s*:\s*(.*)$/;
+    var LOG_RE2=/^(\d{2}-\d{2}\s[\d:.]+)\s+([VDIWEF])\/([\S]+)\s*:\s*(.*)$/;
+    var TAG_MAP={'WebUiActivity':'App','GoLog':'Xray','SshManager':'SSH','SshVpnService':'SshVPN','SshTProxyService':'SshTUN','V2RayServiceManager':'V2Ray','OperatorManager':'Ops','UpdateManager':'Update'};
+
+    function parseLogLine(line){var m=LOG_RE.exec(line)||LOG_RE2.exec(line);if(!m)return null;return{time:m[1].split(' ')[1]||m[1],level:m[2],tag:m[3],msg:m[4]};}
+    function buildLogEntry(p){
+        var entry=document.createElement('div');entry.className='log-entry lvl-'+p.level;
+        var badge=document.createElement('span');badge.className='log-badge badge-'+p.level;badge.textContent=p.level;
+        var timeEl=document.createElement('span');timeEl.className='log-time';timeEl.textContent=p.time.split('.')[0];
+        var tagEl=document.createElement('span');tagEl.className='log-tag';
+        tagEl.textContent=TAG_MAP[p.tag]||p.tag.replace('com.v2ray.ang.','').substring(0,12);tagEl.title=p.tag;
+        var msgEl=document.createElement('span');msgEl.className='log-msg';
+        var text=p.msg.replace(/at com\.v2ray\.[^\s]+/g,'').replace(/at android\.[^\s]+/g,'').replace(/at kotlin\.[^\s]+/g,'').replace(/\t/g,'').trim();
+        msgEl.textContent=text||p.msg;
+        entry.appendChild(badge);entry.appendChild(timeEl);entry.appendChild(tagEl);entry.appendChild(msgEl);
+        return entry;
+    }
+    window.onLogLine = function(line) {
+        var el = document.getElementById('log-content'); if(!el)return;
+        var p = parseLogLine(line), entry;
+        if (p) { entry=buildLogEntry(p); }
+        else {
+            if(line.trim().startsWith('at ')||line.trim().startsWith('java.')||line.trim().startsWith('kotlin.')||line.trim().startsWith('Caused by:'))return;
+            entry=document.createElement('div');entry.style.cssText='padding:1px 10px;color:#1e3040;font-size:.57rem;word-break:break-all;';entry.textContent=line;
+        }
+        el.appendChild(entry);
+        logLineCount++;document.getElementById('log-count').textContent=logLineCount+' linhas';
+        var children=el.children;while(children.length>800)el.removeChild(children[0]);
+        if(logAutoScroll)el.scrollTop=el.scrollHeight;
+    };
+    function openLogModal(){
+        document.getElementById('log-modal').classList.add('open');logAutoScroll=true;
+        if(window.Android&&Android.startLogStream)Android.startLogStream();
+        var el=document.getElementById('log-content');
+        el.onscroll=function(){logAutoScroll=el.scrollTop+el.clientHeight>=el.scrollHeight-30;};
+    }
+    function closeLogModal(){document.getElementById('log-modal').classList.remove('open');if(window.Android&&Android.stopLogStream)Android.stopLogStream();}
+    function clearLog(){document.getElementById('log-content').innerHTML='';logLineCount=0;document.getElementById('log-count').textContent='0 linhas';if(window.Android&&Android.clearLog)Android.clearLog();}
+    function copyLog(){
+        var text='';
+        if(window.Android&&Android.getLogSnapshot){text=Android.getLogSnapshot();}
+        else{var entries=document.getElementById('log-content').children,lines=[];for(var i=0;i<entries.length;i++)lines.push(entries[i].textContent);text=lines.join('\n');}
+        if(window.Android&&Android.copyToClipboard){Android.copyToClipboard(text);showToast('📋 LOG COPIADO','#4a9eff',true);}
+    }
+
+    // =============================================================================
+    // NAVEGAÇÃO
+    // =============================================================================
+    function goToConfig(){window.history.pushState({page:'config'},'Config');showPage('config-screen');}
+    window.onpopstate=function(){showPage('home');};
+    function showPage(id){document.querySelectorAll('section').forEach(function(s){s.classList.remove('active');});document.getElementById(id).classList.add('active');}
+
+    // =============================================================================
+    // SALVAR CONFIG
+    // =============================================================================
+    function saveConfig(){
+        var val=document.getElementById('config-input').value.trim();
+        if(val&&!val.startsWith('vless://')&&!val.includes('"outbounds"')){alert('Config não reconhecido.\nUse VLESS ou JSON com "outbounds".');return;}
+        storageSave('netsmon_config',val);
+        var gif=document.getElementById('gif-url-input').value.trim();
+        storageSave('netsmon_bg',gif);applyBackground(gif);
+        alert('Configurações salvas!');handleAndroidBack();
+    }
+</script>
+</body>
+</html>
