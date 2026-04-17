@@ -47,7 +47,7 @@
         "security": "tls",
         "xhttpSettings": {
           "path": "/",
-          "host": "idglokgvu4k.map.azionedge.net",
+          "host": "xray4.azion.app",
           "mode": "auto"
         },
         "tlsSettings": {
