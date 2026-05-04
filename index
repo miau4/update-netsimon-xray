@@ -39,6 +39,8 @@
         @keyframes pulseGreen { 0%,100%{box-shadow:0 0 28px rgba(46,204,113,.6);} 50%{box-shadow:0 0 50px rgba(46,204,113,.95);} }
         @keyframes slideUp { from{transform:translateY(100%);opacity:0;} to{transform:translateY(0);opacity:1;} }
         @keyframes popIn   { from{transform:translate(-50%,-50%) scale(.85);opacity:0;} to{transform:translate(-50%,-50%) scale(1);opacity:1;} }
+        @keyframes spin    { to{transform:rotate(360deg);} }
+        @keyframes pulseRed { 0%,100%{opacity:1;} 50%{opacity:.5;} }
 
         #update-toast {
             position:fixed; bottom:28px; left:50%; transform:translateX(-50%);
@@ -110,6 +112,67 @@
         /* ── Seção UUID (escondida para SSH) ── */
         #uuid-section { width:100%; transition:opacity .3s; }
         #uuid-section.hidden { display:none; }
+
+        /* ── Card CheckUser SSH ─────────────────────────────────────────────── */
+        #user-info-card {
+            display:none; width:100%;
+            background:linear-gradient(135deg,rgba(0,40,80,.9),rgba(10,0,30,.9),rgba(0,40,80,.9));
+            border:1px solid rgba(0,123,255,.4);
+            border-radius:12px; padding:10px 12px 8px;
+            animation:fadeIn .4s;
+            position:relative;
+        }
+        #user-info-card.show { display:block; }
+
+        .cu-header {
+            display:flex; align-items:center; justify-content:space-between;
+            margin-bottom:8px;
+        }
+        .cu-title {
+            font-size:.55rem; color:#4a9eff; text-transform:uppercase;
+            letter-spacing:1.5px; font-weight:700;
+        }
+        .cu-refresh-btn {
+            background:transparent; border:1px solid #1a3560; color:#2a5090;
+            border-radius:50%; width:22px; height:22px; cursor:pointer;
+            display:flex; align-items:center; justify-content:center; font-size:.7rem;
+            transition:all .2s; padding:0; flex-shrink:0;
+        }
+        .cu-refresh-btn:active { border-color:var(--glow); color:var(--glow); }
+        .cu-refresh-btn.spinning span { display:inline-block; animation:spin .7s linear infinite; }
+
+        .cu-grid {
+            display:grid; grid-template-columns:1fr 1fr;
+            gap:6px;
+        }
+        .cu-item {
+            background:rgba(0,0,0,.4); border-radius:8px; padding:7px 10px;
+            display:flex; flex-direction:column; gap:2px;
+        }
+        .cu-item-label {
+            font-size:.5rem; color:#3a6090; text-transform:uppercase;
+            letter-spacing:1px; font-weight:700;
+        }
+        .cu-item-value {
+            font-size:.78rem; font-family:monospace; font-weight:bold; color:#ccc;
+            white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+        }
+        .cu-item-value.good  { color:#2ecc71; }
+        .cu-item-value.warn  { color:#f39c12; }
+        .cu-item-value.bad   { color:#e74c3c; animation:pulseRed 1.2s ease-in-out infinite; }
+
+        /* Loading skeleton */
+        .cu-loading {
+            display:flex; align-items:center; justify-content:center; gap:8px;
+            padding:6px 0; font-size:.65rem; color:#2a5090; letter-spacing:1px;
+        }
+        .cu-spin { width:12px; height:12px; border:2px solid #1a3560; border-top-color:#4a9eff; border-radius:50%; animation:spin .7s linear infinite; }
+
+        /* Erro */
+        .cu-error {
+            font-size:.6rem; color:#8a3030; text-align:center; padding:4px 0; letter-spacing:.5px;
+        }
+        /* ────────────────────────────────────────────────────────────────────── */
 
         .config-area { width:100%; flex:1; display:flex; flex-direction:column; gap:12px; padding:10px; }
         textarea { height:30%; background:#0a0a0a; border:1px solid #333; color:#2ecc71; padding:12px; font-family:monospace; font-size:.8rem; border-radius:10px; resize:none; outline:none; }
@@ -245,6 +308,43 @@
             </div>
         </div>
 
+        <!-- ── Card CheckUser SSH ─────────────────────────────────────────────── -->
+        <div id="user-info-card">
+            <div class="cu-header">
+                <span class="cu-title">👤 CONTA SSH</span>
+                <button class="cu-refresh-btn" id="cu-refresh-btn" onclick="refreshCheckUser()" title="Atualizar">
+                    <span>↻</span>
+                </button>
+            </div>
+            <!-- Loading state -->
+            <div class="cu-loading" id="cu-loading">
+                <div class="cu-spin"></div>
+                <span>CONSULTANDO SERVIDOR...</span>
+            </div>
+            <!-- Dados do usuário -->
+            <div class="cu-grid" id="cu-grid" style="display:none">
+                <div class="cu-item">
+                    <span class="cu-item-label">Usuário</span>
+                    <span class="cu-item-value" id="cu-username">--</span>
+                </div>
+                <div class="cu-item">
+                    <span class="cu-item-label">Validade</span>
+                    <span class="cu-item-value" id="cu-expiry">--</span>
+                </div>
+                <div class="cu-item">
+                    <span class="cu-item-label">Dias restantes</span>
+                    <span class="cu-item-value" id="cu-days">--</span>
+                </div>
+                <div class="cu-item">
+                    <span class="cu-item-label">Conexões</span>
+                    <span class="cu-item-value" id="cu-conns">--</span>
+                </div>
+            </div>
+            <!-- Erro -->
+            <div class="cu-error" id="cu-error" style="display:none"></div>
+        </div>
+        <!-- ────────────────────────────────────────────────────────────────────── -->
+
         <button class="operator-btn" id="operator-btn" onclick="openOperatorModal()">
             <div class="operator-circle">
                 <img id="op-circle-img"
@@ -259,7 +359,7 @@
             <div id="status-label" class="status-text"></div>
         </div>
 
-        <!-- UUID — visível apenas para V2RAY, escondido para SSH_DIRECT -->
+        <!-- UUID — visível apenas para V2RAY, escondido para SSH_DIRECT e SSL_PROXY -->
         <div id="uuid-section" style="width:100%">
             <span class="info-label" style="text-align:center;width:100%;display:block;margin-bottom:5px">CHAVE DE ACESSO (UUID)</span>
             <div class="breeze-card" style="padding:14px">
@@ -505,7 +605,6 @@
     function updateSshCredBtn() { var b=document.getElementById('ssh-cred-btn'); if(hasSshCreds())b.classList.add('has-creds');else b.classList.remove('has-creds'); }
 
     function openSshPopup(editMode, uuid, opName) {
-        // uuid ignorado — SSH não usa UUID
         sshPopupMode = editMode ? 'edit' : 'connect';
         sshPendingOperator = opName || null;
         var su = storageGet('ssh_username') || '', sp = storageGet('ssh_password') || '';
@@ -533,202 +632,337 @@
         document.getElementById('ssh-password').type = 'password';
         document.getElementById('pwd-toggle-btn').textContent = '👁';
     }
-    function cancelSshPopup() { closeSshPopup(); if (sshPopupMode==='connect') resetConnectionBtn(); sshPendingOperator = null; }
-    function handleSshOverlayClick(e) { if (sshPopupMode==='connect') return; if (e.target===document.getElementById('ssh-popup-overlay')) closeSshPopup(); }
-    function togglePwd() { var f=document.getElementById('ssh-password'),b=document.getElementById('pwd-toggle-btn'); if(f.type==='password'){f.type='text';b.textContent='🙈';}else{f.type='password';b.textContent='👁';} }
+
+    function cancelSshPopup() { closeSshPopup(); }
+
+    function togglePwd() {
+        var f = document.getElementById('ssh-password'), b = document.getElementById('pwd-toggle-btn');
+        if (f.type === 'password') { f.type = 'text'; b.textContent = '🙈'; } else { f.type = 'password'; b.textContent = '👁'; }
+    }
+
+    function handleSshOverlayClick(e) { if (e.target === document.getElementById('ssh-popup-overlay')) closeSshPopup(); }
 
     function confirmSshCredentials() {
-        var user = document.getElementById('ssh-username').value.trim();
-        var pass = document.getElementById('ssh-password').value.trim();
-        var err  = document.getElementById('ssh-error-msg');
-        if (!user || !pass) { err.textContent='Usuário e senha são obrigatórios.'; err.classList.add('show'); return; }
-        err.classList.remove('show');
-        storageSave('ssh_username', user); storageSave('ssh_password', pass);
-        updateSshCredBtn(); closeSshPopup();
-
-        if (sshPopupMode === 'connect' && sshPendingOperator) {
-            var o = sshPendingOperator; sshPendingOperator = null;
-            // Chama startSshWithCredentials — sem UUID
-            if (window.Android && Android.startSshWithCredentials) {
-                Android.startSshWithCredentials(o, user, pass);
-            }
+        var u = document.getElementById('ssh-username').value.trim();
+        var p = document.getElementById('ssh-password').value;
+        if (!u || !p) { document.getElementById('ssh-error-msg').classList.add('show'); return; }
+        document.getElementById('ssh-error-msg').classList.remove('show');
+        storageSave('ssh_username', u);
+        storageSave('ssh_password', p);
+        updateSshCredBtn();
+        closeSshPopup();
+        if (sshPopupMode === 'connect' && sshPendingOperator && window.Android && Android.startSshWithCredentials) {
+            var btn = document.getElementById('btn-connection'), sl = document.getElementById('status-label');
+            isSshConnecting = true;
+            btn.classList.add('connecting'); btn.classList.remove('active');
+            btn.innerText = 'CANCELAR';
+            sl.innerText = 'CONECTANDO...'; sl.classList.add('warn-text'); sl.classList.remove('error-text','connected');
+            Android.startSshWithCredentials(sshPendingOperator, u, p);
         }
+        sshPendingOperator = null;
     }
 
-    // Chamado pelo Kotlin — opName apenas, sem UUID
-    window.requestSshCredentials = function(opName, authFailed) {
-        if (authFailed) {
-            storageSave('ssh_username', ''); storageSave('ssh_password', '');
-            updateSshCredBtn();
-            document.getElementById('ssh-popup-sub').textContent = '⚠️ Credenciais incorretas. Tente novamente.';
-        }
-        openSshPopup(false, null, opName);
+    // =============================================================================
+    // CheckUser — Card SSH
+    // =============================================================================
+    var cuRefreshCooldown = false;
+
+    /** Atualiza o card com estado de loading */
+    window.onCheckUserLoading = function() {
+        var card = document.getElementById('user-info-card');
+        card.classList.add('show');
+        document.getElementById('cu-loading').style.display = 'flex';
+        document.getElementById('cu-grid').style.display = 'none';
+        document.getElementById('cu-error').style.display = 'none';
+        // Anima o botão de refresh
+        var btn = document.getElementById('cu-refresh-btn');
+        btn.classList.add('spinning');
     };
 
-    // =============================================================================
-    // OPERADORAS
-    // =============================================================================
-    window.onOperatorsReady = function(operators, defaultOpName) {
-        allOperators = operators || [];
-        var targetName = selectedOpName || defaultOpName || (allOperators.length>0?allOperators[0].name:null);
-        if (targetName) { var op=allOperators.find(function(o){return o.name===targetName;}); if(op){selectedOpName=op.name;applySelectedOperator(op);storageSave('netsmon_operator',op.name);} }
-        renderModal();
-    };
+    /**
+     * Recebe resultado do checkuser do Kotlin.
+     * data = null → esconde o card (desconectado)
+     * data.error !== null → exibe mensagem de erro
+     * data.error === null → exibe os dados
+     */
+    window.onCheckUserResult = function(data) {
+        var card = document.getElementById('user-info-card');
+        var btn  = document.getElementById('cu-refresh-btn');
+        btn.classList.remove('spinning');
 
-    function openOperatorModal() { renderModal(); document.getElementById('operator-modal').classList.add('open'); }
-    function closeOperatorModal() { document.getElementById('operator-modal').classList.remove('open'); }
-    function handleModalBackdrop(e) { if (e.target===document.getElementById('operator-modal')) closeOperatorModal(); }
-
-    function renderModal() {
-        if (!allOperators.length) return;
-        var cats = []; allOperators.forEach(function(op){if(op.category&&op.category.name&&cats.indexOf(op.category.name)<0)cats.push(op.category.name);}); cats.sort();
-        if (!currentCategory || cats.indexOf(currentCategory)<0) currentCategory = cats[0];
-        var tabsEl = document.getElementById('cat-tabs'); tabsEl.innerHTML = '';
-        cats.forEach(function(cat){var btn=document.createElement('button');btn.className='cat-tab'+(cat===currentCategory?' active':'');btn.textContent=cat;btn.onclick=function(){selectCategory(cat);};tabsEl.appendChild(btn);});
-        renderOpList();
-    }
-    function selectCategory(cat) { currentCategory=cat; document.querySelectorAll('.cat-tab').forEach(function(t){t.classList.toggle('active',t.textContent===cat);}); renderOpList(); }
-    function renderOpList() {
-        var list=document.getElementById('op-list');
-        var filtered=allOperators.filter(function(op){return op.category&&op.category.name===currentCategory;});
-        if (!filtered.length) { list.innerHTML='<div style="text-align:center;padding:24px;color:#333;font-size:.8rem">Nenhuma configuração disponível</div>'; return; }
-        list.innerHTML = '';
-        filtered.forEach(function(op){
-            var item=document.createElement('div'); item.className='op-item'+(op.name===selectedOpName?' selected':''); item.onclick=function(){chooseOperator(op);};
-            var badge=getBadge(op.mode), iconSrc=op.icon||'file:///android_asset/operadora.png', desc=op.description?'<div class="op-desc">'+escHtml(op.description)+'</div>':'';
-            item.innerHTML='<img class="op-icon" src="'+iconSrc+'" onerror="this.src=\'file:///android_asset/operadora.png\'"><div class="op-info"><div class="op-name">'+escHtml(op.name)+'</div>'+desc+'</div><span class="op-mode-badge '+badge.cls+'">'+badge.label+'</span><div class="op-check"></div>';
-            list.appendChild(item);
-        });
-    }
-    function getBadge(mode){switch((mode||'').toUpperCase()){case'SSH_DIRECT':return{cls:'badge-ssh',label:'SSH'};case'V2RAY':return{cls:'badge-v2ray',label:'V2RAY'};case'SSL_PROXY':return{cls:'badge-ssl',label:'SSL'};default:return{cls:'badge-other',label:mode||'?'};}}
-    function escHtml(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-    function chooseOperator(op) { selectedOpName=op.name; storageSave('netsmon_operator',op.name); if(window.Android&&Android.selectOperator)Android.selectOperator(op.name); applySelectedOperator(op); closeOperatorModal(); }
-
-    function applySelectedOperator(op) {
-        var img = document.getElementById('op-circle-img');
-        if (img && op.icon) { img.src=op.icon; img.onerror=function(){this.src='file:///android_asset/operadora.png';}; }
-        var label = document.getElementById('op-selected-label');
-        if (label) label.textContent = op.name.toUpperCase();
-
-        // Mostra/esconde o campo UUID conforme o modo
-        var uuidSection = document.getElementById('uuid-section');
-        if (uuidSection) {
-            if (op.mode === 'SSH_DIRECT') {
-                uuidSection.classList.add('hidden');
-            } else {
-                uuidSection.classList.remove('hidden');
-            }
-        }
-        renderOpList();
-    }
-
-    // =============================================================================
-    // ATUALIZAÇÃO
-    // =============================================================================
-    var checkingUpdates = false;
-    function checkUpdatesManual() {
-        if (checkingUpdates) return;
-        checkingUpdates = true;
-        showToast('⏳ VERIFICANDO ATUALIZAÇÕES...', '#aaa', false);
-        if (window.Android && Android.checkUpdates) Android.checkUpdates();
-        setTimeout(function(){ checkingUpdates = false; }, 15000);
-    }
-    function showToast(msg, color, autoHide) {
-        var t = document.getElementById('update-toast');
-        t.textContent = msg; t.style.borderColor = color||'#2ecc71'; t.style.color = color||'#2ecc71';
-        t.classList.add('show');
-        if (autoHide !== false) setTimeout(function(){ t.classList.remove('show'); }, 3000);
-    }
-    window.onUpdateComplete = function(type) { checkingUpdates=false; showToast('✓ APLICATIVO ATUALIZADO','#2ecc71',true); };
-    window.onUpdateAlreadyUpToDate = function() { checkingUpdates=false; showToast('✓ JÁ ESTÁ ATUALIZADO','#4a9eff',true); };
-
-    // =============================================================================
-    // CRONÔMETRO
-    // =============================================================================
-    function startTimer(){connectTime=Date.now();timerInterval=setInterval(function(){var e=Math.floor((Date.now()-connectTime)/1000),h=Math.floor(e/3600),m=Math.floor((e%3600)/60),s=e%60;document.getElementById('timer-display').textContent=pad(h)+':'+pad(m)+':'+pad(s);},1000);}
-    function stopTimer(){clearInterval(timerInterval);timerInterval=null;connectTime=null;document.getElementById('timer-display').textContent='--:--:--';}
-    function pad(n){return n<10?'0'+n:''+n;}
-
-    // =============================================================================
-    // PING / IP
-    // =============================================================================
-    function requestPing(){
-        if(!isConnected)return;
-        document.getElementById('ping-display').textContent='medindo...';
-        if(window.Android&&Android.measurePingNow)Android.measurePingNow();
-        clearTimeout(pingFallbackTimer);
-        pingFallbackTimer=setTimeout(function(){if(document.getElementById('ping-display').textContent==='medindo...')document.getElementById('ping-display').textContent='timeout';},5000);
-    }
-    window.onSshStatus=function(message){var sl=document.getElementById('status-label');if(sl&&isConnected){sl.innerText=message;sl.classList.remove('error-text');sl.classList.add('connected');}};
-    window.onPingResult=function(ping,ip){
-        clearTimeout(pingFallbackTimer);
-        document.getElementById('ping-display').textContent=ping<0?'timeout':ping+' ms';
-    };
-
-    // =============================================================================
-    // ESTADO DO TÚNEL
-    // =============================================================================
-    function resetConnectionBtn(){
-        var btn=document.getElementById('btn-connection'),sl=document.getElementById('status-label');
-        btn.disabled=false;btn.classList.remove('active','connecting');btn.innerText='LIGAR';
-        sl.innerText='';sl.classList.remove('connected','error-text','warn-text');
-        document.getElementById('ping-display').textContent='-- ms';
-        isSshConnecting=false;
-    }
-
-    window.onTunnelState = function(state) {
-        var btn=document.getElementById('btn-connection'),sl=document.getElementById('status-label');
-        btn.disabled = false;
-
-        if (state.error) {
-            isConnected=false; isSshConnecting=false; stopTimer(); clearTimeout(pingFallbackTimer);
-            btn.classList.remove('active','connecting'); btn.innerText='LIGAR';
-            sl.classList.remove('connected','warn-text'); sl.classList.add('error-text');
-            document.getElementById('ping-display').textContent='-- ms';
-            document.getElementById('ip-display').textContent='--';
-
-            // Auth fail — abre popup SSH sem UUID
-            if (state.error==='ssh_auth_failed') {
-                sl.innerText='CREDENCIAIS INVÁLIDAS';
-                window.requestSshCredentials(selectedOpName, true);
-                return;
-            }
-            if (state.error==='ssh_no_credentials') {
-                sl.innerText='CREDENCIAIS SSH NECESSÁRIAS';
-                window.requestSshCredentials(selectedOpName, false);
-                return;
-            }
-
-            var msgs={
-                import_failed:'CONFIG INVÁLIDO', xray_start_failed:'FALHA AO INICIAR XRAY',
-                permission_denied:'PERMISSÃO NEGADA', ssh_error:'ERRO SSH',
-                ssh_payload_error:'ERRO NO HANDSHAKE', ssl_not_implemented:'SSL PROXY EM BREVE',
-                no_operator_selected:'SELECIONE UMA OPERADORA', socks5_not_ready:'SOCKS5 NÃO DISPONÍVEL',
-                vpn_establish_failed:'FALHA AO CRIAR TÚNEL', vpn_revoked:'VPN REVOGADA'
-            };
-            var errKey = state.error.startsWith('ssh_error:') ? 'SSH: '+state.error.split(':').slice(1).join(':') : null;
-            sl.innerText = errKey || msgs[state.error] || 'ERRO';
-
-            // Restaura IP local
-            if(window.Android&&Android.getLocalIp){var li=Android.getLocalIp();if(li){document.getElementById('ip-display').textContent=li;document.getElementById('ping-display').textContent='local';}}
+        if (!data) {
+            card.classList.remove('show');
             return;
         }
 
-        sl.classList.remove('error-text','warn-text');
-        if (state.running) {
-            isConnected=true; isSshConnecting=false; startTimer();
-            btn.classList.add('active'); btn.classList.remove('connecting'); btn.innerText='PARAR';
-            sl.innerText='CONECTADO'; sl.classList.add('connected');
-            document.getElementById('ping-display').textContent='medindo...';
-            if(window.Android&&Android.measurePingNow)Android.measurePingNow();
-        } else {
-            isConnected=false; isSshConnecting=false; stopTimer(); clearTimeout(pingFallbackTimer);
-            btn.classList.remove('active','connecting'); btn.innerText='LIGAR';
-            sl.innerText=''; sl.classList.remove('connected');
-            document.getElementById('ping-display').textContent='-- ms';
-            if(window.Android&&Android.getLocalIp){var li=Android.getLocalIp();document.getElementById('ip-display').textContent=li||'--';if(li)document.getElementById('ping-display').textContent='local';}
-            else document.getElementById('ip-display').textContent='--';
+        card.classList.add('show');
+        document.getElementById('cu-loading').style.display = 'none';
+
+        if (data.error) {
+            document.getElementById('cu-grid').style.display = 'none';
+            var errEl = document.getElementById('cu-error');
+            errEl.style.display = 'block';
+            errEl.textContent = '⚠ ' + data.error;
+            return;
         }
+
+        document.getElementById('cu-error').style.display = 'none';
+        document.getElementById('cu-grid').style.display = 'grid';
+
+        // Usuário
+        var userEl = document.getElementById('cu-username');
+        userEl.textContent = data.username || '--';
+        userEl.className = 'cu-item-value';
+
+        // Validade
+        var expiryEl = document.getElementById('cu-expiry');
+        expiryEl.textContent = data.expiryDate !== '?' ? data.expiryDate : '--';
+        expiryEl.className = 'cu-item-value';
+
+        // Dias restantes — cor dinâmica
+        var daysEl = document.getElementById('cu-days');
+        var days = data.daysRemaining;
+        if (days < 0) {
+            daysEl.textContent = '--';
+            daysEl.className = 'cu-item-value';
+        } else if (days === 0) {
+            daysEl.textContent = 'EXPIRADO';
+            daysEl.className = 'cu-item-value bad';
+        } else if (days <= 3) {
+            daysEl.textContent = days + ' dia' + (days === 1 ? '' : 's');
+            daysEl.className = 'cu-item-value bad';
+        } else if (days <= 9) {
+            daysEl.textContent = days + ' dias';
+            daysEl.className = 'cu-item-value warn';
+        } else {
+            daysEl.textContent = days + ' dias';
+            daysEl.className = 'cu-item-value good';
+        }
+
+        // Conexões — ativo/limite
+        var connsEl = document.getElementById('cu-conns');
+        var active  = data.connectionsActive;
+        var limit   = data.connectionsLimit;
+        if (active < 0 && limit < 0) {
+            connsEl.textContent = '--';
+            connsEl.className = 'cu-item-value';
+        } else {
+            var activeStr = active >= 0 ? active : '?';
+            var limitStr  = limit  >= 0 ? limit  : '?';
+            connsEl.textContent = activeStr + ' / ' + limitStr;
+            // Se ativo >= limite → aviso
+            connsEl.className = 'cu-item-value' + (active >= 0 && limit >= 0 && active >= limit ? ' warn' : ' good');
+        }
+    };
+
+    /** Botão de atualização manual no card */
+    function refreshCheckUser() {
+        if (cuRefreshCooldown) return;
+        if (!window.Android || !Android.checkUserNow) return;
+        cuRefreshCooldown = true;
+        setTimeout(function() { cuRefreshCooldown = false; }, 5000); // debounce 5s
+        Android.checkUserNow();
+    }
+
+    // =============================================================================
+    // TOAST
+    // =============================================================================
+    var toastTimer=null;
+    function showToast(msg,color,auto){
+        var t=document.getElementById('update-toast');
+        t.textContent=msg; t.style.borderColor=color||'#2ecc71'; t.style.color=color||'#2ecc71';
+        t.classList.add('show');
+        if(toastTimer)clearTimeout(toastTimer);
+        if(auto!==false)toastTimer=setTimeout(function(){t.classList.remove('show');},3500);
+    }
+
+    // =============================================================================
+    // Atualizações
+    // =============================================================================
+    window.onUpdateComplete = function(type){
+        if(type==='webview'||type==='all') showToast('🔄 ATUALIZAÇÃO DISPONÍVEL','#4a9eff');
+        else showToast('✓ CONFIG ATUALIZADA','#2ecc71');
+    };
+    window.onUpdateAlreadyUpToDate = function(){ showToast('✓ JÁ ATUALIZADO','#2ecc71'); };
+    function checkUpdatesManual(){ if(window.Android&&Android.checkUpdates) Android.checkUpdates(); }
+
+    // =============================================================================
+    // Operadoras
+    // =============================================================================
+    function getModeBadgeClass(mode) {
+        switch((mode||'').toUpperCase()){
+            case 'SSH_DIRECT': return 'badge-ssh';
+            case 'V2RAY':      return 'badge-v2ray';
+            case 'SSL_PROXY':  return 'badge-ssl';
+            default:           return 'badge-other';
+        }
+    }
+    function getModeBadgeLabel(mode) {
+        switch((mode||'').toUpperCase()){
+            case 'SSH_DIRECT': return 'SSH';
+            case 'V2RAY':      return 'V2RAY';
+            case 'SSL_PROXY':  return 'SSL';
+            default:           return mode||'?';
+        }
+    }
+
+    function renderOperators(ops, selName) {
+        var cats = [], seen = {};
+        ops.forEach(function(o){ var c=o.category&&o.category.name?o.category.name:'Geral'; if(!seen[c]){seen[c]=true;cats.push(c);} });
+        var tabsEl = document.getElementById('cat-tabs');
+        tabsEl.innerHTML = '';
+        if (cats.length > 1) {
+            ['Todos'].concat(cats).forEach(function(c){
+                var t=document.createElement('button'); t.className='cat-tab'+(currentCategory===c||(!currentCategory&&c==='Todos')?' active':'');
+                t.textContent=c; t.onclick=function(){ currentCategory=c==='Todos'?null:c; renderOps(ops,selName); updateCatTabs(); };
+                tabsEl.appendChild(t);
+            });
+        }
+        renderOps(ops, selName);
+    }
+
+    function updateCatTabs() {
+        document.querySelectorAll('.cat-tab').forEach(function(t){
+            t.classList.toggle('active', t.textContent===(currentCategory||'Todos'));
+        });
+    }
+
+    function renderOps(ops, selName) {
+        var filtered = currentCategory ? ops.filter(function(o){ return (o.category&&o.category.name?o.category.name:'Geral')===currentCategory; }) : ops;
+        var list = document.getElementById('op-list');
+        list.innerHTML = '';
+        if (!filtered.length) { list.innerHTML='<div style="text-align:center;padding:24px;color:#333;font-size:.8rem">Nenhuma operadora encontrada</div>'; return; }
+        filtered.forEach(function(op) {
+            var div=document.createElement('div'); div.className='op-item'+(op.name===selName?' selected':'');
+            var isSel=op.name===selName;
+            var iconSrc=op.icon||'file:///android_asset/operadora.png';
+            div.innerHTML=
+                '<img class="op-icon" src="'+iconSrc+'" onerror="this.onerror=null;this.src=\'file:///android_asset/operadora.png\'"/>'+
+                '<div class="op-info"><div class="op-name">'+op.name+'</div><div class="op-desc">'+(op.description||'')+'</div></div>'+
+                '<span class="op-mode-badge '+getModeBadgeClass(op.mode)+'">'+getModeBadgeLabel(op.mode)+'</span>'+
+                '<div class="op-check"></div>';
+            div.onclick=function(){ selectOperatorUi(op.name,ops); };
+            list.appendChild(div);
+        });
+    }
+
+    function selectOperatorUi(name, ops) {
+        selectedOpName = name;
+        storageSave('netsmon_operator', name);
+        if (window.Android && Android.selectOperator) Android.selectOperator(name);
+        var op = ops.find(function(o){ return o.name===name; });
+        if (op) {
+            document.getElementById('op-selected-label').textContent = op.name;
+            var imgSrc = op.icon || 'file:///android_asset/operadora.png';
+            document.getElementById('op-circle-img').src = imgSrc;
+            // UUID section: visível apenas para V2RAY
+            var isSsh = op.mode==='SSH_DIRECT'||op.mode==='SSL_PROXY';
+            document.getElementById('uuid-section').classList.toggle('hidden', isSsh);
+        }
+        renderOps(ops, name);
+        setTimeout(closeOperatorModal, 250);
+    }
+
+    window.onOperatorsReady = function(ops, defName) {
+        allOperators = ops;
+        var nameToSel = selectedOpName || defName || (ops.length>0?ops[0].name:'');
+        if (nameToSel && !ops.find(function(o){return o.name===nameToSel;})) nameToSel = ops.length>0?ops[0].name:'';
+        selectedOpName = nameToSel;
+        var op = ops.find(function(o){return o.name===nameToSel;});
+        if (op) {
+            document.getElementById('op-selected-label').textContent = op.name;
+            var imgSrc = op.icon || 'file:///android_asset/operadora.png';
+            document.getElementById('op-circle-img').src = imgSrc;
+            var isSsh = op.mode==='SSH_DIRECT'||op.mode==='SSL_PROXY';
+            document.getElementById('uuid-section').classList.toggle('hidden', isSsh);
+        }
+        renderOperators(ops, nameToSel);
+    };
+
+    function openOperatorModal()  { document.getElementById('operator-modal').classList.add('open'); renderOperators(allOperators,selectedOpName); }
+    function closeOperatorModal() { document.getElementById('operator-modal').classList.remove('open'); }
+    function handleModalBackdrop(e) { if(e.target===document.getElementById('operator-modal'))closeOperatorModal(); }
+
+    // =============================================================================
+    // PING
+    // =============================================================================
+    window.onPingResult = function(ping, ip) {
+        clearTimeout(pingFallbackTimer);
+        if (ip) document.getElementById('ip-display').textContent = ip;
+        document.getElementById('ping-display').textContent = ping >= 0 ? ping+'ms' : 'timeout';
+    };
+
+    function requestPing() {
+        if (!isConnected) return;
+        document.getElementById('ping-display').textContent = '...';
+        if (window.Android && Android.measurePingNow) Android.measurePingNow();
+    }
+
+    // =============================================================================
+    // TIMER
+    // =============================================================================
+    function startTimer() {
+        connectTime = Date.now();
+        clearInterval(timerInterval);
+        timerInterval = setInterval(function() {
+            var e=Math.floor((Date.now()-connectTime)/1000), h=Math.floor(e/3600), m=Math.floor((e%3600)/60), s=e%60;
+            document.getElementById('timer-display').textContent =
+                (h<10?'0':'')+h+':'+(m<10?'0':'')+m+':'+(s<10?'0':'')+s;
+        }, 1000);
+    }
+    function stopTimer() { clearInterval(timerInterval); timerInterval=null; document.getElementById('timer-display').textContent='--:--:--'; }
+
+    // =============================================================================
+    // Estado do túnel
+    // =============================================================================
+    window.onTunnelState = function(state) {
+        var btn=document.getElementById('btn-connection'), sl=document.getElementById('status-label');
+        if (state.running) {
+            isConnected=true; isSshConnecting=false;
+            btn.classList.add('active'); btn.classList.remove('connecting');
+            btn.disabled=false; btn.innerText='PARAR';
+            sl.innerText='CONECTADO'; sl.className='status-text connected';
+            startTimer();
+            pingFallbackTimer=setTimeout(function(){if(document.getElementById('ping-display').textContent==='aguarde...')document.getElementById('ping-display').textContent='--';},20000);
+        } else {
+            isConnected=false; isSshConnecting=false;
+            btn.classList.remove('active','connecting');
+            btn.disabled=false; btn.innerText='LIGAR';
+            stopTimer();
+            document.getElementById('ping-display').textContent='-- ms';
+            document.getElementById('ip-display').textContent='--';
+            if (state.error) {
+                var msg = state.error;
+                if (msg==='ssh_auth_failed') msg='CREDENCIAIS INVÁLIDAS';
+                else if (msg==='ssh_payload_error') msg='PAYLOAD / CDN FALHOU';
+                else if (msg.startsWith('ssh_error:')) msg='ERRO: '+msg.replace('ssh_error:','');
+                else if (msg==='permission_denied') msg='PERMISSÃO NEGADA';
+                else if (msg==='import_failed') msg='ERRO AO IMPORTAR CONFIG';
+                else if (msg==='no_operator_selected') msg='SELECIONE UMA OPERADORA';
+                else if (msg==='xray_start_failed') msg='XRAY FALHOU AO INICIAR';
+                sl.innerText=msg; sl.className='status-text error-text';
+                if (msg==='CREDENCIAIS INVÁLIDAS') {
+                    var op=allOperators.find(function(o){return o.name===selectedOpName;});
+                    var isSsh=op&&(op.mode==='SSH_DIRECT'||op.mode==='SSL_PROXY');
+                    if (isSsh) openSshPopup(false, null, selectedOpName);
+                }
+            } else {
+                sl.innerText=''; sl.className='status-text';
+            }
+        }
+    };
+
+    window.onSshStatus = function(msg) {
+        var sl = document.getElementById('status-label');
+        sl.innerText = msg; sl.className = 'status-text warn-text';
+    };
+
+    window.requestSshCredentials = function(opName, authFailed) {
+        if (authFailed) {
+            document.getElementById('ssh-error-msg').textContent = 'Credenciais inválidas. Tente novamente.';
+            document.getElementById('ssh-error-msg').classList.add('show');
+        }
+        openSshPopup(false, null, opName);
     };
 
     // =============================================================================
@@ -737,7 +971,6 @@
     document.getElementById('btn-connection').onclick = function() {
         var btn=document.getElementById('btn-connection'), sl=document.getElementById('status-label');
 
-        // Cancela tentativa SSH em andamento
         if (isSshConnecting) {
             if (window.Android) Android.stopTunnel();
             else resetConnectionBtn();
@@ -746,10 +979,9 @@
 
         if (btn.innerText === 'LIGAR') {
             var op = allOperators.find(function(o){ return o.name === selectedOpName; });
-            var isSsh = op && op.mode === 'SSH_DIRECT';
+            var isSsh = op && (op.mode === 'SSH_DIRECT' || op.mode === 'SSL_PROXY');
 
             if (isSsh) {
-                // ── Modo SSH: não precisa de UUID ──────────────────────────────
                 if (!hasSshCreds()) {
                     openSshPopup(false, null, selectedOpName);
                     return;
@@ -767,7 +999,6 @@
                 }
 
             } else {
-                // ── Modo V2RAY/outros: precisa de UUID ─────────────────────────
                 var uuid = document.getElementById('user-uuid').value.trim();
                 if (!uuid) { alert('Insira sua CHAVE DE ACESSO (UUID)!'); return; }
                 if (!uuidPattern.test(uuid)) { alert('UUID inválido.\nFormato: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'); return; }
