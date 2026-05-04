@@ -109,11 +109,9 @@
         .uuid-box { width:100%; background:transparent; border:none; color:#fff; font-family:monospace; font-size:.92rem; text-align:center; font-weight:bold; outline:none; }
         .app-version { font-size:.55rem; color:#333; letter-spacing:2px; text-transform:uppercase; text-align:center; margin-top:5px; display:block; }
 
-        /* ── Seção UUID (escondida para SSH) ── */
         #uuid-section { width:100%; transition:opacity .3s; }
         #uuid-section.hidden { display:none; }
 
-        /* ── Card CheckUser SSH ─────────────────────────────────────────────── */
         #user-info-card {
             display:none; width:100%;
             background:linear-gradient(135deg,rgba(0,40,80,.9),rgba(10,0,30,.9),rgba(0,40,80,.9));
@@ -161,18 +159,15 @@
         .cu-item-value.warn  { color:#f39c12; }
         .cu-item-value.bad   { color:#e74c3c; animation:pulseRed 1.2s ease-in-out infinite; }
 
-        /* Loading skeleton */
         .cu-loading {
             display:flex; align-items:center; justify-content:center; gap:8px;
             padding:6px 0; font-size:.65rem; color:#2a5090; letter-spacing:1px;
         }
         .cu-spin { width:12px; height:12px; border:2px solid #1a3560; border-top-color:#4a9eff; border-radius:50%; animation:spin .7s linear infinite; }
 
-        /* Erro */
         .cu-error {
             font-size:.6rem; color:#8a3030; text-align:center; padding:4px 0; letter-spacing:.5px;
         }
-        /* ────────────────────────────────────────────────────────────────────── */
 
         .config-area { width:100%; flex:1; display:flex; flex-direction:column; gap:12px; padding:10px; }
         textarea { height:30%; background:#0a0a0a; border:1px solid #333; color:#2ecc71; padding:12px; font-family:monospace; font-size:.8rem; border-radius:10px; resize:none; outline:none; }
@@ -308,7 +303,6 @@
             </div>
         </div>
 
-        <!-- ── Card CheckUser SSH ─────────────────────────────────────────────── -->
         <div id="user-info-card">
             <div class="cu-header">
                 <span class="cu-title">👤 CONTA SSH</span>
@@ -316,12 +310,10 @@
                     <span>↻</span>
                 </button>
             </div>
-            <!-- Loading state -->
             <div class="cu-loading" id="cu-loading">
                 <div class="cu-spin"></div>
                 <span>CONSULTANDO SERVIDOR...</span>
             </div>
-            <!-- Dados do usuário -->
             <div class="cu-grid" id="cu-grid" style="display:none">
                 <div class="cu-item">
                     <span class="cu-item-label">Usuário</span>
@@ -340,10 +332,8 @@
                     <span class="cu-item-value" id="cu-conns">--</span>
                 </div>
             </div>
-            <!-- Erro -->
             <div class="cu-error" id="cu-error" style="display:none"></div>
         </div>
-        <!-- ────────────────────────────────────────────────────────────────────── -->
 
         <button class="operator-btn" id="operator-btn" onclick="openOperatorModal()">
             <div class="operator-circle">
@@ -359,7 +349,6 @@
             <div id="status-label" class="status-text"></div>
         </div>
 
-        <!-- UUID — visível apenas para V2RAY, escondido para SSH_DIRECT e SSL_PROXY -->
         <div id="uuid-section" style="width:100%">
             <span class="info-label" style="text-align:center;width:100%;display:block;margin-bottom:5px">CHAVE DE ACESSO (UUID)</span>
             <div class="breeze-card" style="padding:14px">
@@ -403,7 +392,7 @@
     </div>
 </div>
 
-<!-- Popup SSH — sem campo UUID -->
+<!-- Popup SSH -->
 <div id="ssh-popup-overlay" onclick="handleSshOverlayClick(event)">
     <div class="ssh-popup">
         <div class="ssh-popup-icon">🔐</div>
@@ -497,7 +486,7 @@
     })();
 
     // =============================================================================
-    // Storage
+    // Storage — usa Android.storageSave/storageGet quando disponível
     // =============================================================================
     function storageSave(k,v){if(window.Android&&Android.storageSave)Android.storageSave(k,v);else try{localStorage.setItem(k,v);}catch(e){}}
     function storageGet(k){if(window.Android&&Android.storageGet)return Android.storageGet(k);try{return localStorage.getItem(k);}catch(e){return null;}}
@@ -535,10 +524,15 @@
         if (savedOp) selectedOpName = savedOp;
         updateSshCredBtn();
 
-        var bgUrl = storageGet('netsmon_bg') || '';
+        // Preenche o campo de URL do background
+        var BG_DEFAULT = 'https://i.pinimg.com/736x/72/a6/b4/72a6b495e2ed0aed7e883300ad3eb960.jpg';
+        var bgUrl = storageGet('netsmon_bg') || BG_DEFAULT;
         if (document.getElementById('gif-url-input')) document.getElementById('gif-url-input').value = bgUrl;
+
+        // Aplica o cache local imediatamente (sem piscar).
+        // O Kotlin vai baixar a imagem em background e chamar saveBgCacheFromKotlin()
+        // via evaluateJavascript para atualizar o fundo sem reload.
         applyBackgroundLocal();
-        if (bgUrl) applyBackgroundOnline(bgUrl);
 
         if (window.Android && Android.getLocalIp) {
             var localIp = Android.getLocalIp();
@@ -552,39 +546,89 @@
             } catch(e) {}
         }
 
-        if (window.Android && Android.checkUpdates) Android.checkUpdates();
+        // checkUpdates é chamado pelo Kotlin via onPageFinished — NÃO chame aqui
+        // para evitar o loop (load → checkUpdates → update → reload → load → ...)
+        // Se quiser disparar manualmente, o usuário toca no logo.
     });
 
     // =============================================================================
     // Fundo
+    //
+    // ESTRATÉGIA:
+    //   O WebView carrega via file://, então fetch() para URLs https externas é
+    //   bloqueado pela política de mesma origem do Android WebView.
+    //
+    //   Solução: o download real é feito pelo Kotlin (WebUiActivity.downloadBgIfNeeded)
+    //   que tem acesso total à rede. Após baixar, o Kotlin chama via evaluateJavascript:
+    //
+    //     storageSave('netsmon_bg_cache', dataUrl);
+    //     document.getElementById('bg-layer').style.backgroundImage = "url('...')";
+    //     document.getElementById('bg-layer').classList.add('loaded');
+    //
+    //   O JS só precisa aplicar o cache que já existe no storage.
     // =============================================================================
+
+    /**
+     * Aplica o cache de background já existente no storage local.
+     * Chamado no load e como fallback.
+     * NÃO faz fetch() — isso é responsabilidade do Kotlin.
+     */
     function applyBackgroundLocal() {
         var bg = document.getElementById('bg-layer');
+
+        // 1) Tenta o cache base64 salvo pelo Kotlin
+        var cached = storageGet('netsmon_bg_cache');
+        if (cached && cached.length > 100) {
+            bg.style.backgroundImage = "url('" + cached + "')";
+            bg.classList.add('loaded');
+            return;
+        }
+
+        // 2) Fallback: imagem empacotada no APK
         var localImg = new Image();
-        localImg.onload = function() { bg.style.backgroundImage = "url('file:///android_asset/fundo.png')"; bg.classList.add('loaded'); };
+        localImg.onload = function() {
+            bg.style.backgroundImage = "url('file:///android_asset/fundo.png')";
+            bg.classList.add('loaded');
+        };
+        localImg.onerror = function() {
+            // APK sem fundo.png — mantém fundo preto, sem erro visível
+        };
         localImg.src = 'file:///android_asset/fundo.png';
     }
+
+    /**
+     * Aplica background de vídeo (MP4/WebM/OGG).
+     * Para imagens, o download é feito pelo Kotlin — não use fetch() aqui.
+     */
     function applyBackgroundOnline(url) {
         if (!url || !url.trim()) return;
         url = url.trim();
         var bg = document.getElementById('bg-layer');
-        var old = document.getElementById('bg-video'); if (old) old.remove();
+        var oldV = document.getElementById('bg-video'); if (oldV) oldV.remove();
+
         if (/\.(mp4|webm|ogg)(\?.*)?$/i.test(url)) {
+            // Vídeo: o WebView consegue carregar via <video> sem restrição de origem
             bg.style.backgroundImage = 'none'; bg.classList.remove('loaded');
             var v = document.createElement('video');
-            v.id='bg-video';v.src=url;v.autoplay=true;v.loop=true;v.muted=true;v.playsInline=true;
+            v.id='bg-video'; v.src=url; v.autoplay=true; v.loop=true; v.muted=true; v.playsInline=true;
             v.style.cssText='position:fixed;inset:0;z-index:2;width:100%;height:100%;object-fit:cover;opacity:0;pointer-events:none;transition:opacity 0.8s';
             document.body.insertBefore(v, document.body.firstChild);
             v.oncanplay = function(){ v.style.opacity='0.5'; };
-        } else {
-            var img = new Image();
-            img.onload = function() { bg.style.backgroundImage="url('"+url+"')"; bg.classList.add('loaded'); };
-            img.src = url;
         }
+        // Para imagens: o Kotlin baixa e entrega via evaluateJavascript automaticamente.
+        // Não precisamos fazer nada aqui — applyBackgroundLocal() já aplicou o cache.
     }
+
+    /**
+     * Ponto de entrada para mudança de background (ex: salvar config).
+     * Remove vídeo se existir, aplica cache local, e aciona o Kotlin para download.
+     */
     function applyBackground(url) {
-        var old = document.getElementById('bg-video'); if (old) old.remove();
+        var oldV = document.getElementById('bg-video'); if (oldV) oldV.remove();
         if (!url || !url.trim()) { applyBackgroundLocal(); return; }
+        // Aplica o cache imediatamente (sem piscar)
+        applyBackgroundLocal();
+        // Trata vídeo inline; imagem será baixada pelo Kotlin
         applyBackgroundOnline(url.trim());
     }
 
@@ -599,7 +643,7 @@
     };
 
     // =============================================================================
-    // CREDENCIAIS SSH — sem UUID
+    // CREDENCIAIS SSH
     // =============================================================================
     function hasSshCreds() { var u=storageGet('ssh_username'),p=storageGet('ssh_password'); return !!(u&&u.trim()&&p&&p.trim()); }
     function updateSshCredBtn() { var b=document.getElementById('ssh-cred-btn'); if(hasSshCreds())b.classList.add('has-creds');else b.classList.remove('has-creds'); }
@@ -663,37 +707,25 @@
     }
 
     // =============================================================================
-    // CheckUser — Card SSH
+    // CheckUser
     // =============================================================================
     var cuRefreshCooldown = false;
 
-    /** Atualiza o card com estado de loading */
     window.onCheckUserLoading = function() {
         var card = document.getElementById('user-info-card');
         card.classList.add('show');
         document.getElementById('cu-loading').style.display = 'flex';
         document.getElementById('cu-grid').style.display = 'none';
         document.getElementById('cu-error').style.display = 'none';
-        // Anima o botão de refresh
-        var btn = document.getElementById('cu-refresh-btn');
-        btn.classList.add('spinning');
+        document.getElementById('cu-refresh-btn').classList.add('spinning');
     };
 
-    /**
-     * Recebe resultado do checkuser do Kotlin.
-     * data = null → esconde o card (desconectado)
-     * data.error !== null → exibe mensagem de erro
-     * data.error === null → exibe os dados
-     */
     window.onCheckUserResult = function(data) {
         var card = document.getElementById('user-info-card');
         var btn  = document.getElementById('cu-refresh-btn');
         btn.classList.remove('spinning');
 
-        if (!data) {
-            card.classList.remove('show');
-            return;
-        }
+        if (!data) { card.classList.remove('show'); return; }
 
         card.classList.add('show');
         document.getElementById('cu-loading').style.display = 'none';
@@ -709,58 +741,36 @@
         document.getElementById('cu-error').style.display = 'none';
         document.getElementById('cu-grid').style.display = 'grid';
 
-        // Usuário
         var userEl = document.getElementById('cu-username');
         userEl.textContent = data.username || '--';
         userEl.className = 'cu-item-value';
 
-        // Validade
         var expiryEl = document.getElementById('cu-expiry');
         expiryEl.textContent = data.expiryDate !== '?' ? data.expiryDate : '--';
         expiryEl.className = 'cu-item-value';
 
-        // Dias restantes — cor dinâmica
         var daysEl = document.getElementById('cu-days');
         var days = data.daysRemaining;
-        if (days < 0) {
-            daysEl.textContent = '--';
-            daysEl.className = 'cu-item-value';
-        } else if (days === 0) {
-            daysEl.textContent = 'EXPIRADO';
-            daysEl.className = 'cu-item-value bad';
-        } else if (days <= 3) {
-            daysEl.textContent = days + ' dia' + (days === 1 ? '' : 's');
-            daysEl.className = 'cu-item-value bad';
-        } else if (days <= 9) {
-            daysEl.textContent = days + ' dias';
-            daysEl.className = 'cu-item-value warn';
-        } else {
-            daysEl.textContent = days + ' dias';
-            daysEl.className = 'cu-item-value good';
-        }
+        if (days < 0) { daysEl.textContent='--'; daysEl.className='cu-item-value'; }
+        else if (days===0) { daysEl.textContent='EXPIRADO'; daysEl.className='cu-item-value bad'; }
+        else if (days<=3) { daysEl.textContent=days+' dia'+(days===1?'':'s'); daysEl.className='cu-item-value bad'; }
+        else if (days<=9) { daysEl.textContent=days+' dias'; daysEl.className='cu-item-value warn'; }
+        else { daysEl.textContent=days+' dias'; daysEl.className='cu-item-value good'; }
 
-        // Conexões — ativo/limite
         var connsEl = document.getElementById('cu-conns');
-        var active  = data.connectionsActive;
-        var limit   = data.connectionsLimit;
-        if (active < 0 && limit < 0) {
-            connsEl.textContent = '--';
-            connsEl.className = 'cu-item-value';
-        } else {
-            var activeStr = active >= 0 ? active : '?';
-            var limitStr  = limit  >= 0 ? limit  : '?';
-            connsEl.textContent = activeStr + ' / ' + limitStr;
-            // Se ativo >= limite → aviso
-            connsEl.className = 'cu-item-value' + (active >= 0 && limit >= 0 && active >= limit ? ' warn' : ' good');
+        var active=data.connectionsActive, limit=data.connectionsLimit;
+        if (active<0&&limit<0) { connsEl.textContent='--'; connsEl.className='cu-item-value'; }
+        else {
+            connsEl.textContent=(active>=0?active:'?')+' / '+(limit>=0?limit:'?');
+            connsEl.className='cu-item-value'+(active>=0&&limit>=0&&active>=limit?' warn':' good');
         }
     };
 
-    /** Botão de atualização manual no card */
     function refreshCheckUser() {
         if (cuRefreshCooldown) return;
         if (!window.Android || !Android.checkUserNow) return;
         cuRefreshCooldown = true;
-        setTimeout(function() { cuRefreshCooldown = false; }, 5000); // debounce 5s
+        setTimeout(function() { cuRefreshCooldown = false; }, 5000);
         Android.checkUserNow();
     }
 
@@ -784,6 +794,8 @@
         else showToast('✓ CONFIG ATUALIZADA','#2ecc71');
     };
     window.onUpdateAlreadyUpToDate = function(){ showToast('✓ JÁ ATUALIZADO','#2ecc71'); };
+
+    // checkUpdates manual (toque no logo) — o Kotlin tem cooldown + AtomicBoolean
     function checkUpdatesManual(){ if(window.Android&&Android.checkUpdates) Android.checkUpdates(); }
 
     // =============================================================================
@@ -834,7 +846,6 @@
         if (!filtered.length) { list.innerHTML='<div style="text-align:center;padding:24px;color:#333;font-size:.8rem">Nenhuma operadora encontrada</div>'; return; }
         filtered.forEach(function(op) {
             var div=document.createElement('div'); div.className='op-item'+(op.name===selName?' selected':'');
-            var isSel=op.name===selName;
             var iconSrc=op.icon||'file:///android_asset/operadora.png';
             div.innerHTML=
                 '<img class="op-icon" src="'+iconSrc+'" onerror="this.onerror=null;this.src=\'file:///android_asset/operadora.png\'"/>'+
@@ -855,7 +866,6 @@
             document.getElementById('op-selected-label').textContent = op.name;
             var imgSrc = op.icon || 'file:///android_asset/operadora.png';
             document.getElementById('op-circle-img').src = imgSrc;
-            // UUID section: visível apenas para V2RAY
             var isSsh = op.mode==='SSH_DIRECT'||op.mode==='SSL_PROXY';
             document.getElementById('uuid-section').classList.toggle('hidden', isSsh);
         }
@@ -923,7 +933,7 @@
             btn.disabled=false; btn.innerText='PARAR';
             sl.innerText='CONECTADO'; sl.className='status-text connected';
             startTimer();
-            pingFallbackTimer=setTimeout(function(){if(document.getElementById('ping-display').textContent==='aguarde...')document.getElementById('ping-display').textContent='--';},20000);
+            pingFallbackTimer=setTimeout(function(){if(document.getElementById('ping-display').textContent==='aguarde...')document.getElementById('ping-display').textContent='--';},6000);
         } else {
             isConnected=false; isSshConnecting=false;
             btn.classList.remove('active','connecting');
@@ -1091,7 +1101,10 @@
         if(val&&!val.startsWith('vless://')&&!val.includes('"outbounds"')){alert('Config não reconhecido.\nUse VLESS ou JSON com "outbounds".');return;}
         storageSave('netsmon_config',val);
         var gif=document.getElementById('gif-url-input').value.trim();
-        storageSave('netsmon_bg',gif);applyBackground(gif);
+        storageSave('netsmon_bg',gif);
+        // Limpa o cache do background para forçar novo download pelo Kotlin
+        storageSave('netsmon_bg_cache','');
+        applyBackground(gif);
         alert('Configurações salvas!');handleAndroidBack();
     }
 </script>
