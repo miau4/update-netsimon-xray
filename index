@@ -21,7 +21,7 @@
             background-size:cover; background-position:center; background-repeat:no-repeat;
             opacity:0; pointer-events:none; transition:opacity 0.8s ease;
         }
-        #bg-layer.loaded { opacity:0.18; }
+        #bg-layer.loaded { opacity:0.30; }
         body { display:flex; flex-direction:column; align-items:center; position:relative; z-index:3; }
 
         @keyframes colorBreeze {
@@ -191,7 +191,7 @@
             width:36px; height:36px; border-radius:50%;
             background:rgba(10,10,30,.85); border:1px solid #1a2540; color:#334; font-size:.9rem;
             display:flex; align-items:center; justify-content:center;
-            cursor:pointer; transition:all .2s; box-shadow:0 2px 8px rgba(0,0,0,.5); position:relative;
+            cursor:pointer; transition:all .2s; box-shadow:0 2px 8px rgba(0,0,0,.5); position:fixed;
         }
         #ssh-cred-btn:hover, #ssh-cred-btn:active { border-color:var(--glow); color:var(--glow); }
         #ssh-cred-btn.has-creds::after { content:''; position:absolute; top:2px; right:2px; width:8px; height:8px; border-radius:50%; background:var(--green); border:1px solid #000; }
@@ -243,35 +243,147 @@
         .ssh-error-msg.show { display:block; }
         .ssh-saved-info { display:flex; align-items:center; gap:8px; background:rgba(46,204,113,.08); border:1px solid rgba(46,204,113,.2); border-radius:8px; padding:8px 12px; margin-bottom:16px; font-size:.68rem; color:#2ecc71; }
 
-        #log-modal { display:none; position:fixed; inset:0; z-index:3000; background:rgba(0,0,0,.97); flex-direction:column; }
+        /* =====================================================================
+           LOG MODAL — estilo HTTP Injector
+           Entradas simples: hora | emoji | mensagem
+           Cores por categoria de ícone
+        ===================================================================== */
+        #log-modal {
+            display:none; position:fixed; inset:0; z-index:3000;
+            background:#02050e; flex-direction:column;
+        }
         #log-modal.open { display:flex; animation:fadeIn .15s; }
-        .log-header { display:flex; align-items:center; justify-content:space-between; padding:10px 12px 8px; border-bottom:1px solid #1a2540; background:#03050f; flex-shrink:0; }
-        .log-title { font-size:.7rem; font-weight:700; color:#4a9eff; text-transform:uppercase; letter-spacing:2px; }
-        .log-actions { display:flex; gap:6px; align-items:center; }
-        .log-action-btn { background:transparent; border:1px solid #1a2540; color:#556; padding:4px 10px; border-radius:6px; font-size:.62rem; cursor:pointer; font-weight:700; transition:all .15s; }
-        .log-action-btn:active { border-color:var(--glow); color:var(--glow); }
-        #log-close-btn { background:transparent; border:none; color:#556; font-size:1.1rem; cursor:pointer; padding:4px 8px; }
-        .log-status-bar { display:flex; align-items:center; gap:10px; padding:5px 12px; background:#020408; border-bottom:1px solid #0d1520; flex-shrink:0; flex-wrap:wrap; }
-        .log-live-dot { width:7px; height:7px; border-radius:50%; background:#2ecc71; animation:blink 1.2s ease-in-out infinite; flex-shrink:0; }
-        @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:.2;} }
-        .log-live-label { font-size:.6rem; color:#2ecc71; font-weight:700; letter-spacing:1px; }
-        .log-count-badge { font-size:.58rem; color:#3a5a7a; margin-left:auto; }
-        #log-content { flex:1; overflow-y:auto; padding:4px 0; font-family:'Courier New', monospace; font-size:.62rem; scroll-behavior:smooth; }
-        .log-entry { display:flex; align-items:flex-start; padding:3px 10px; border-bottom:1px solid rgba(255,255,255,.025); gap:0; }
-        .log-badge { flex-shrink:0; width:18px; text-align:center; font-size:.56rem; font-weight:900; border-radius:2px; padding:1px 0; margin-right:6px; margin-top:1px; }
-        .badge-E { background:rgba(231,76,60,.3); color:#e74c3c; }
-        .badge-W { background:rgba(243,156,18,.2); color:#f39c12; }
-        .badge-I { background:rgba(52,152,219,.2); color:#5dade2; }
-        .badge-D { background:rgba(100,100,100,.15); color:#666; }
-        .badge-V { background:transparent; color:#333; }
-        .log-time  { flex-shrink:0; color:#1a3050; font-size:.57rem; margin-right:5px; margin-top:1px; white-space:nowrap; }
-        .log-tag   { flex-shrink:0; color:#1e4a6a; font-size:.59rem; font-weight:700; margin-right:5px; margin-top:1px; max-width:70px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-        .log-msg   { flex:1; word-break:break-all; white-space:pre-wrap; line-height:1.35; }
-        .lvl-E .log-msg { color:#c0392b; }
-        .lvl-W .log-msg { color:#d4ac0d; }
-        .lvl-I .log-msg { color:#7fb3d3; }
-        .lvl-D .log-msg { color:#4a6070; }
-        .lvl-V .log-msg { color:#2a3a48; }
+
+        .log-header {
+            display:flex; align-items:center; justify-content:space-between;
+            padding:12px 14px 10px;
+            background:linear-gradient(180deg,#030a1a 0%,#020610 100%);
+            border-bottom:1px solid #0d1828;
+            flex-shrink:0;
+        }
+        .log-title-wrap { display:flex; flex-direction:column; gap:2px; }
+        .log-title {
+            font-size:.72rem; font-weight:800; color:#3a7abf;
+            text-transform:uppercase; letter-spacing:2.5px;
+        }
+        .log-subtitle {
+            font-size:.52rem; color:#1a3050; letter-spacing:1px;
+            text-transform:uppercase;
+        }
+        .log-header-btns { display:flex; gap:6px; align-items:center; }
+        .log-hbtn {
+            background:transparent; border:1px solid #0d1828; color:#2a4060;
+            padding:5px 10px; border-radius:6px; font-size:.6rem; font-weight:700;
+            text-transform:uppercase; letter-spacing:1px; cursor:pointer; transition:all .15s;
+        }
+        .log-hbtn:active { border-color:#3a7abf; color:#3a7abf; }
+        .log-hbtn.danger:active { border-color:#8a2020; color:#e74c3c; }
+        #log-close-btn {
+            background:transparent; border:none; color:#2a4060;
+            font-size:1rem; cursor:pointer; padding:4px 6px; line-height:1;
+        }
+        #log-close-btn:active { color:#fff; }
+
+        /* Barra de status/contagem */
+        .log-status-bar {
+            display:flex; align-items:center; gap:8px;
+            padding:5px 14px 4px;
+            background:#020610;
+            border-bottom:1px solid #080f1e;
+            flex-shrink:0;
+        }
+        .log-live-dot {
+            width:6px; height:6px; border-radius:50%; background:#1a5a30;
+            flex-shrink:0;
+        }
+        .log-live-dot.active {
+            background:#2ecc71; box-shadow:0 0 5px rgba(46,204,113,.6);
+            animation:blink 1.4s ease-in-out infinite;
+        }
+        @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:.25;} }
+        .log-count { font-size:.56rem; color:#1a3050; letter-spacing:1px; margin-left:auto; }
+
+        /* Área de entradas */
+        #log-content {
+            flex:1; overflow-y:auto; padding:4px 0;
+            scroll-behavior:smooth;
+        }
+        #log-content::-webkit-scrollbar { width:3px; }
+        #log-content::-webkit-scrollbar-track { background:#020610; }
+        #log-content::-webkit-scrollbar-thumb { background:#0d1828; border-radius:2px; }
+
+        /* Entrada individual */
+        .al-entry {
+            display:flex; align-items:flex-start;
+            padding:7px 14px 6px;
+            border-bottom:1px solid rgba(255,255,255,.022);
+            gap:0;
+            transition:background .1s;
+        }
+        .al-entry:active { background:rgba(255,255,255,.03); }
+
+        .al-time {
+            flex-shrink:0; width:54px;
+            font-size:.6rem; font-family:'Courier New', monospace;
+            color:#0d2035; margin-top:1px; letter-spacing:.3px;
+        }
+        .al-icon {
+            flex-shrink:0; width:22px;
+            font-size:.78rem; text-align:center; margin-top:-1px;
+        }
+        .al-msg {
+            flex:1; font-size:.72rem; line-height:1.4;
+            letter-spacing:.2px; word-break:break-word;
+        }
+
+        /* Cores por categoria */
+        .al-success .al-msg { color:#2ecc71; }
+        .al-success .al-time { color:#0d3020; }
+
+        .al-error .al-msg   { color:#e74c3c; }
+        .al-error .al-time  { color:#3d0d0d; }
+
+        .al-warn .al-msg    { color:#e67e22; }
+        .al-warn .al-time   { color:#3d2200; }
+
+        .al-connect .al-msg  { color:#3498db; }
+        .al-connect .al-time { color:#0d2035; }
+
+        .al-disconnect .al-msg  { color:#7f8c8d; }
+        .al-disconnect .al-time { color:#0d1520; }
+
+        .al-ping .al-msg  { color:#1abc9c; }
+        .al-ping .al-time { color:#0a2520; }
+
+        .al-ip .al-msg  { color:#5dade2; }
+        .al-ip .al-time { color:#0d2035; }
+
+        .al-user .al-msg  { color:#a569bd; }
+        .al-user .al-time { color:#2a0d40; }
+
+        .al-update .al-msg  { color:#58d68d; }
+        .al-update .al-time { color:#0a2a18; }
+
+        .al-info .al-msg  { color:#2a4060; }
+        .al-info .al-time { color:#0d1520; }
+
+        .al-reconnect .al-msg  { color:#f39c12; }
+        .al-reconnect .al-time { color:#3d2800; }
+
+        /* Estado vazio */
+        .log-empty {
+            display:flex; flex-direction:column; align-items:center; justify-content:center;
+            height:100%; gap:10px; color:#0d1828; padding:40px;
+        }
+        .log-empty-icon { font-size:2rem; opacity:.4; }
+        .log-empty-text { font-size:.65rem; letter-spacing:2px; text-transform:uppercase; text-align:center; line-height:1.6; }
+
+        /* Separador de sessão */
+        .al-separator {
+            text-align:center; font-size:.52rem; color:#0d1828;
+            letter-spacing:2px; padding:6px 14px; text-transform:uppercase;
+            border-bottom:1px solid rgba(255,255,255,.022);
+        }
     </style>
 </head>
 <body>
@@ -376,7 +488,7 @@
     </section>
 </main>
 
-<button id="log-btn" onclick="openLogModal()" title="Log do app">📋</button>
+<button id="log-btn" onclick="openLogModal()" title="Log de conexão">📋</button>
 <button id="ssh-cred-btn" onclick="openSshPopup(true)" title="Credenciais SSH" style="position:fixed">🔑</button>
 
 <!-- Modal operadoras -->
@@ -420,20 +532,26 @@
     </div>
 </div>
 
-<!-- Modal Log -->
+<!-- =========================================================================
+     LOG MODAL — estilo HTTP Injector
+     Mostra apenas eventos semânticos do AppLog (conexão, ping, IP, updates)
+========================================================================== -->
 <div id="log-modal">
     <div class="log-header">
-        <span class="log-title">📡 LOG EM TEMPO REAL</span>
-        <div class="log-actions">
-            <button class="log-action-btn" onclick="copyLog()">📋 COPIAR</button>
-            <button class="log-action-btn" onclick="clearLog()" style="color:#e74c3c;border-color:#5a1010;">🗑 LIMPAR</button>
+        <div class="log-title-wrap">
+            <span class="log-title">Log de Conexão</span>
+            <span class="log-subtitle">Netsimon · Status</span>
+        </div>
+        <div class="log-header-btns">
+            <button class="log-hbtn" onclick="copyAppLog()">Copiar</button>
+            <button class="log-hbtn danger" onclick="clearAppLog()">Limpar</button>
             <button id="log-close-btn" onclick="closeLogModal()">✕</button>
         </div>
     </div>
     <div class="log-status-bar">
-        <div class="log-live-dot"></div>
-        <span class="log-live-label">AO VIVO</span>
-        <span class="log-count-badge" id="log-count">0 linhas</span>
+        <div class="log-live-dot active" id="al-live-dot"></div>
+        <span style="font-size:.58rem;color:#1a4060;letter-spacing:1px">AO VIVO</span>
+        <span class="log-count" id="al-count">0 eventos</span>
     </div>
     <div id="log-content"></div>
 </div>
@@ -486,7 +604,7 @@
     })();
 
     // =============================================================================
-    // Storage — usa Android.storageSave/storageGet quando disponível
+    // Storage
     // =============================================================================
     function storageSave(k,v){if(window.Android&&Android.storageSave)Android.storageSave(k,v);else try{localStorage.setItem(k,v);}catch(e){}}
     function storageGet(k){if(window.Android&&Android.storageGet)return Android.storageGet(k);try{return localStorage.getItem(k);}catch(e){return null;}}
@@ -499,7 +617,6 @@
     var uuidPattern=/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
     var allOperators=[], currentCategory=null, selectedOpName=null;
     var sshPopupMode='connect', sshPendingOperator=null;
-    var logLineCount=0, logAutoScroll=true;
 
     // =============================================================================
     // Back handler Android
@@ -524,14 +641,10 @@
         if (savedOp) selectedOpName = savedOp;
         updateSshCredBtn();
 
-        // Preenche o campo de URL do background
         var BG_DEFAULT = 'https://i.pinimg.com/736x/72/a6/b4/72a6b495e2ed0aed7e883300ad3eb960.jpg';
         var bgUrl = storageGet('netsmon_bg') || BG_DEFAULT;
         if (document.getElementById('gif-url-input')) document.getElementById('gif-url-input').value = bgUrl;
 
-        // Aplica o cache local imediatamente (sem piscar).
-        // O Kotlin vai baixar a imagem em background e chamar saveBgCacheFromKotlin()
-        // via evaluateJavascript para atualizar o fundo sem reload.
         applyBackgroundLocal();
 
         if (window.Android && Android.getLocalIp) {
@@ -545,61 +658,28 @@
                 if (json && json !== '[]') { var ops = JSON.parse(json); if (ops.length > 0) onOperatorsReady(ops, selectedOpName || ops[0].name); }
             } catch(e) {}
         }
-
-        // checkUpdates é chamado pelo Kotlin via onPageFinished — NÃO chame aqui
-        // para evitar o loop (load → checkUpdates → update → reload → load → ...)
-        // Se quiser disparar manualmente, o usuário toca no logo.
     });
 
     // =============================================================================
     // Fundo
-    //
-    // ESTRATÉGIA:
-    //   O WebView carrega via file://, então fetch() para URLs https externas é
-    //   bloqueado pela política de mesma origem do Android WebView.
-    //
-    //   Solução: o download real é feito pelo Kotlin (WebUiActivity.downloadBgIfNeeded)
-    //   que tem acesso total à rede. Após baixar, o Kotlin chama via evaluateJavascript:
-    //
-    //     storageSave('netsmon_bg_cache', dataUrl);
-    //     document.getElementById('bg-layer').style.backgroundImage = "url('...')";
-    //     document.getElementById('bg-layer').classList.add('loaded');
-    //
-    //   O JS só precisa aplicar o cache que já existe no storage.
     // =============================================================================
-
-    /**
-     * Aplica o cache de background já existente no storage local.
-     * Chamado no load e como fallback.
-     * NÃO faz fetch() — isso é responsabilidade do Kotlin.
-     */
     function applyBackgroundLocal() {
         var bg = document.getElementById('bg-layer');
-
-        // 1) Tenta o cache base64 salvo pelo Kotlin
         var cached = storageGet('netsmon_bg_cache');
         if (cached && cached.length > 100) {
             bg.style.backgroundImage = "url('" + cached + "')";
             bg.classList.add('loaded');
             return;
         }
-
-        // 2) Fallback: imagem empacotada no APK
         var localImg = new Image();
         localImg.onload = function() {
             bg.style.backgroundImage = "url('file:///android_asset/fundo.png')";
             bg.classList.add('loaded');
         };
-        localImg.onerror = function() {
-            // APK sem fundo.png — mantém fundo preto, sem erro visível
-        };
+        localImg.onerror = function() {};
         localImg.src = 'file:///android_asset/fundo.png';
     }
 
-    /**
-     * Aplica background de vídeo (MP4/WebM/OGG).
-     * Para imagens, o download é feito pelo Kotlin — não use fetch() aqui.
-     */
     function applyBackgroundOnline(url) {
         if (!url || !url.trim()) return;
         url = url.trim();
@@ -607,7 +687,6 @@
         var oldV = document.getElementById('bg-video'); if (oldV) oldV.remove();
 
         if (/\.(mp4|webm|ogg)(\?.*)?$/i.test(url)) {
-            // Vídeo: o WebView consegue carregar via <video> sem restrição de origem
             bg.style.backgroundImage = 'none'; bg.classList.remove('loaded');
             var v = document.createElement('video');
             v.id='bg-video'; v.src=url; v.autoplay=true; v.loop=true; v.muted=true; v.playsInline=true;
@@ -615,20 +694,12 @@
             document.body.insertBefore(v, document.body.firstChild);
             v.oncanplay = function(){ v.style.opacity='0.5'; };
         }
-        // Para imagens: o Kotlin baixa e entrega via evaluateJavascript automaticamente.
-        // Não precisamos fazer nada aqui — applyBackgroundLocal() já aplicou o cache.
     }
 
-    /**
-     * Ponto de entrada para mudança de background (ex: salvar config).
-     * Remove vídeo se existir, aplica cache local, e aciona o Kotlin para download.
-     */
     function applyBackground(url) {
         var oldV = document.getElementById('bg-video'); if (oldV) oldV.remove();
         if (!url || !url.trim()) { applyBackgroundLocal(); return; }
-        // Aplica o cache imediatamente (sem piscar)
         applyBackgroundLocal();
-        // Trata vídeo inline; imagem será baixada pelo Kotlin
         applyBackgroundOnline(url.trim());
     }
 
@@ -795,7 +866,6 @@
     };
     window.onUpdateAlreadyUpToDate = function(){ showToast('✓ JÁ ATUALIZADO','#2ecc71'); };
 
-    // checkUpdates manual (toque no logo) — o Kotlin tem cooldown + AtomicBoolean
     function checkUpdatesManual(){ if(window.Android&&Android.checkUpdates) Android.checkUpdates(); }
 
     // =============================================================================
@@ -1039,51 +1109,163 @@
     };
 
     // =============================================================================
-    // LOG EM TEMPO REAL
+    // AppLog — Log de conexão (estilo HTTP Injector)
+    //
+    // Cada entrada tem o formato: "HH:mm:ss|emoji|mensagem"
+    // Mapeamos o emoji para uma classe CSS de cor.
     // =============================================================================
-    var LOG_RE=/^(\d{2}-\d{2}\s[\d:.]+)\s+\d+-\d+\s+([VDIWEF])\/([\S]+)\s*:\s*(.*)$/;
-    var LOG_RE2=/^(\d{2}-\d{2}\s[\d:.]+)\s+([VDIWEF])\/([\S]+)\s*:\s*(.*)$/;
-    var TAG_MAP={'WebUiActivity':'App','GoLog':'Xray','SshManager':'SSH','SshVpnService':'SshVPN','SshTProxyService':'SshTUN','V2RayServiceManager':'V2Ray','OperatorManager':'Ops','UpdateManager':'Update'};
+    var alAutoScroll = true;
+    var alCount = 0;
 
-    function parseLogLine(line){var m=LOG_RE.exec(line)||LOG_RE2.exec(line);if(!m)return null;return{time:m[1].split(' ')[1]||m[1],level:m[2],tag:m[3],msg:m[4]};}
-    function buildLogEntry(p){
-        var entry=document.createElement('div');entry.className='log-entry lvl-'+p.level;
-        var badge=document.createElement('span');badge.className='log-badge badge-'+p.level;badge.textContent=p.level;
-        var timeEl=document.createElement('span');timeEl.className='log-time';timeEl.textContent=p.time.split('.')[0];
-        var tagEl=document.createElement('span');tagEl.className='log-tag';
-        tagEl.textContent=TAG_MAP[p.tag]||p.tag.replace('com.v2ray.ang.','').substring(0,12);tagEl.title=p.tag;
-        var msgEl=document.createElement('span');msgEl.className='log-msg';
-        var text=p.msg.replace(/at com\.v2ray\.[^\s]+/g,'').replace(/at android\.[^\s]+/g,'').replace(/at kotlin\.[^\s]+/g,'').replace(/\t/g,'').trim();
-        msgEl.textContent=text||p.msg;
-        entry.appendChild(badge);entry.appendChild(timeEl);entry.appendChild(tagEl);entry.appendChild(msgEl);
-        return entry;
-    }
-    window.onLogLine = function(line) {
-        var el = document.getElementById('log-content'); if(!el)return;
-        var p = parseLogLine(line), entry;
-        if (p) { entry=buildLogEntry(p); }
-        else {
-            if(line.trim().startsWith('at ')||line.trim().startsWith('java.')||line.trim().startsWith('kotlin.')||line.trim().startsWith('Caused by:'))return;
-            entry=document.createElement('div');entry.style.cssText='padding:1px 10px;color:#1e3040;font-size:.57rem;word-break:break-all;';entry.textContent=line;
-        }
-        el.appendChild(entry);
-        logLineCount++;document.getElementById('log-count').textContent=logLineCount+' linhas';
-        var children=el.children;while(children.length>800)el.removeChild(children[0]);
-        if(logAutoScroll)el.scrollTop=el.scrollHeight;
+    var ICON_CLASS = {
+        '🔗': 'al-connect',
+        '🔴': 'al-disconnect',
+        '✅': 'al-success',
+        '❌': 'al-error',
+        '⚠️': 'al-warn',
+        '📶': 'al-ping',
+        '🌐': 'al-ip',
+        '👤': 'al-user',
+        '🔄': 'al-update',
+        'ℹ️': 'al-info',
+        '♻️': 'al-reconnect'
     };
-    function openLogModal(){
-        document.getElementById('log-modal').classList.add('open');logAutoScroll=true;
-        if(window.Android&&Android.startLogStream)Android.startLogStream();
-        var el=document.getElementById('log-content');
-        el.onscroll=function(){logAutoScroll=el.scrollTop+el.clientHeight>=el.scrollHeight-30;};
+
+    /**
+     * Constrói e appenda um elemento DOM para uma entrada do AppLog.
+     * @param {string} raw  — string no formato "HH:mm:ss|emoji|mensagem"
+     */
+    function appendAlEntry(raw) {
+        var el = document.getElementById('log-content');
+        if (!el) return;
+
+        // Remove estado vazio se presente
+        var empty = el.querySelector('.log-empty');
+        if (empty) empty.remove();
+
+        var parts = raw.split('|');
+        var time  = parts[0] || '';
+        var icon  = parts[1] || '';
+        // Mensagem pode conter | — junta o restante
+        var msg   = parts.slice(2).join('|');
+
+        var cls = ICON_CLASS[icon] || 'al-info';
+
+        var row = document.createElement('div');
+        row.className = 'al-entry ' + cls;
+
+        var timeEl = document.createElement('span');
+        timeEl.className = 'al-time';
+        timeEl.textContent = time;
+
+        var iconEl = document.createElement('span');
+        iconEl.className = 'al-icon';
+        iconEl.textContent = icon;
+
+        var msgEl = document.createElement('span');
+        msgEl.className = 'al-msg';
+        msgEl.textContent = msg;
+
+        row.appendChild(timeEl);
+        row.appendChild(iconEl);
+        row.appendChild(msgEl);
+        el.appendChild(row);
+
+        // Limita a 300 entradas visíveis
+        var children = el.children;
+        while (children.length > 300) el.removeChild(children[0]);
+
+        alCount++;
+        document.getElementById('al-count').textContent = alCount + (alCount === 1 ? ' evento' : ' eventos');
+
+        if (alAutoScroll) el.scrollTop = el.scrollHeight;
     }
-    function closeLogModal(){document.getElementById('log-modal').classList.remove('open');if(window.Android&&Android.stopLogStream)Android.stopLogStream();}
-    function clearLog(){document.getElementById('log-content').innerHTML='';logLineCount=0;document.getElementById('log-count').textContent='0 linhas';if(window.Android&&Android.clearLog)Android.clearLog();}
-    function copyLog(){
-        var text='';
-        if(window.Android&&Android.getLogSnapshot){text=Android.getLogSnapshot();}
-        else{var entries=document.getElementById('log-content').children,lines=[];for(var i=0;i<entries.length;i++)lines.push(entries[i].textContent);text=lines.join('\n');}
-        if(window.Android&&Android.copyToClipboard){Android.copyToClipboard(text);showToast('📋 LOG COPIADO','#4a9eff',true);}
+
+    /**
+     * Recebe nova entrada em tempo real vinda do Kotlin via AppLog listener.
+     * Chamado pelo bridge notifyWebAppLogEntry().
+     */
+    window.onAppLogEntry = function(raw) {
+        appendAlEntry(raw);
+    };
+
+    /**
+     * Abre o modal de log.
+     * Carrega o snapshot atual do AppLog para preencher entradas anteriores.
+     */
+    function openLogModal() {
+        var modal = document.getElementById('log-modal');
+        modal.classList.add('open');
+        alAutoScroll = true;
+
+        var el = document.getElementById('log-content');
+        el.onscroll = function() {
+            alAutoScroll = el.scrollTop + el.clientHeight >= el.scrollHeight - 40;
+        };
+
+        // Carrega snapshot existente (entradas que ocorreram antes do modal abrir)
+        el.innerHTML = '';
+        alCount = 0;
+        document.getElementById('al-count').textContent = '0 eventos';
+
+        if (window.Android && Android.getAppLog) {
+            try {
+                var entries = JSON.parse(Android.getAppLog());
+                if (entries && entries.length > 0) {
+                    entries.forEach(function(e) { appendAlEntry(e); });
+                } else {
+                    renderAlEmpty();
+                }
+            } catch(e) {
+                renderAlEmpty();
+            }
+        } else {
+            renderAlEmpty();
+        }
+    }
+
+    function closeLogModal() {
+        document.getElementById('log-modal').classList.remove('open');
+    }
+
+    /** Exibe estado vazio quando não há entradas */
+    function renderAlEmpty() {
+        var el = document.getElementById('log-content');
+        el.innerHTML = '';
+        var empty = document.createElement('div');
+        empty.className = 'log-empty';
+        empty.innerHTML =
+            '<span class="log-empty-icon">📋</span>' +
+            '<span class="log-empty-text">Nenhum evento registrado.<br>Conecte-se para ver o status aqui.</span>';
+        el.appendChild(empty);
+    }
+
+    /** Limpa o log */
+    function clearAppLog() {
+        if (window.Android && Android.clearAppLog) Android.clearAppLog();
+        var el = document.getElementById('log-content');
+        el.innerHTML = '';
+        alCount = 0;
+        document.getElementById('al-count').textContent = '0 eventos';
+        renderAlEmpty();
+    }
+
+    /** Copia o log como texto */
+    function copyAppLog() {
+        var el = document.getElementById('log-content');
+        var lines = [];
+        var entries = el.querySelectorAll('.al-entry');
+        entries.forEach(function(row) {
+            var spans = row.querySelectorAll('span');
+            if (spans.length >= 3) {
+                lines.push(spans[0].textContent + ' ' + spans[1].textContent + ' ' + spans[2].textContent);
+            }
+        });
+        var text = lines.join('\n');
+        if (window.Android && Android.copyToClipboard) {
+            Android.copyToClipboard(text);
+            showToast('📋 LOG COPIADO', '#4a9eff', true);
+        }
     }
 
     // =============================================================================
@@ -1102,7 +1284,6 @@
         storageSave('netsmon_config',val);
         var gif=document.getElementById('gif-url-input').value.trim();
         storageSave('netsmon_bg',gif);
-        // Limpa o cache do background para forçar novo download pelo Kotlin
         storageSave('netsmon_bg_cache','');
         applyBackground(gif);
         alert('Configurações salvas!');handleAndroidBack();
