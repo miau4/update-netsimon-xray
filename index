@@ -559,12 +559,16 @@
 <script>
     // =============================================================================
     // NEON CANVAS
+    // Correção GPUAUX/MALI: loop pausável via visibilitychange e bridge Android
     // =============================================================================
     (function() {
         var canvas = document.getElementById('neon-canvas');
         var ctx = canvas.getContext('2d');
         var COLORS = ['rgba(0,123,255,','rgba(111,0,255,','rgba(255,0,200,','rgba(0,255,180,','rgba(0,220,255,','rgba(255,60,120,','rgba(255,160,0,','rgba(80,255,80,'];
         var lines = [], NUM_LINES = 12, TRAIL_LEN = 120;
+        var _rafId = null;   // ID do requestAnimationFrame ativo
+        var _running = true; // flag de estado do loop
+
         function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
         function createLine() {
             var w = canvas.width || window.innerWidth, h = canvas.height || window.innerHeight;
@@ -573,10 +577,11 @@
             var alpha = 0.35 + Math.random() * 0.55, width = 1.2 + Math.random() * 3, glow = 6 + Math.random() * 22;
             var side = Math.floor(Math.random() * 4), extra = TRAIL_LEN * speed, x, y;
             if (side===0){x=Math.random()*w;y=-extra;}else if(side===1){x=w+extra;y=Math.random()*h;}else if(side===2){x=Math.random()*w;y=h+extra;}else{x=-extra;y=Math.random()*h;}
-            return { x, y, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed, color, alpha, width, glow, age:0, maxAge:300+Math.random()*400, trail:[] };
+            return { x: x, y: y, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed, color: color, alpha: alpha, width: width, glow: glow, age:0, maxAge:300+Math.random()*400, trail:[] };
         }
         function init() { lines = []; for(var i=0;i<NUM_LINES;i++){var l=createLine();l.age=Math.random()*l.maxAge;lines.push(l);} }
         function draw() {
+            if (!_running) { _rafId = null; return; } // para o loop se pausado
             ctx.clearRect(0,0,canvas.width,canvas.height);
             for(var i=0;i<lines.length;i++){
                 var l=lines[i];l.x+=l.vx;l.y+=l.vy;l.age++;
@@ -598,9 +603,31 @@
                 var margin=TRAIL_LEN*(Math.abs(l.vx)+Math.abs(l.vy));
                 if(l.age>=l.maxAge||l.x<-margin||l.x>canvas.width+margin||l.y<-margin||l.y>canvas.height+margin)lines[i]=createLine();
             }
-            requestAnimationFrame(draw);
+            _rafId = requestAnimationFrame(draw);
         }
-        window.addEventListener('resize',resize);resize();init();draw();
+
+        // Pausa o loop e cancela o RAF pendente
+        function pauseCanvas() {
+            _running = false;
+            if (_rafId !== null) { cancelAnimationFrame(_rafId); _rafId = null; }
+        }
+
+        // Retoma o loop apenas se estava parado
+        function resumeCanvas() {
+            if (!_running) { _running = true; draw(); }
+        }
+
+        // Page Visibility API — pausa quando o app vai ao background
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) pauseCanvas(); else resumeCanvas();
+        });
+
+        // Bridge para o Kotlin chamar via evaluateJavascript em onPause/onResume
+        window.onWebViewPause  = pauseCanvas;
+        window.onWebViewResume = resumeCanvas;
+
+        window.addEventListener('resize',resize);
+        resize(); init(); draw();
     })();
 
     // =============================================================================
