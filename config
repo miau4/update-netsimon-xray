@@ -47,7 +47,7 @@
         "security": "tls",
         "xhttpSettings": {
           "path": "/",
-          "host": "xray5.azion.app",
+          "host": "xray7.azion.app",
           "mode": "auto"
         },
         "tlsSettings": {
