@@ -21,7 +21,7 @@
             background-size:cover; background-position:center; background-repeat:no-repeat;
             opacity:0; pointer-events:none; transition:opacity 0.8s ease;
         }
-        #bg-layer.loaded { opacity:0.25; }
+        #bg-layer.loaded { opacity:0.30; }
         body { display:flex; flex-direction:column; align-items:center; position:relative; z-index:3; }
 
         @keyframes colorBreeze {
@@ -668,7 +668,7 @@
         if (savedOp) selectedOpName = savedOp;
         updateSshCredBtn();
 
-        var BG_DEFAULT = 'https://i.pinimg.com/736x/72/a6/b4/72a6b495e2ed0aed7e883300ad3eb960.jpg';
+        var BG_DEFAULT = 'https://i.pinimg.com/1200x/10/fb/ea/10fbea716a5cc457c8d2dd90a8cd78bf.jpg';
         var bgUrl = storageGet('netsmon_bg') || BG_DEFAULT;
         if (document.getElementById('gif-url-input')) document.getElementById('gif-url-input').value = bgUrl;
 
