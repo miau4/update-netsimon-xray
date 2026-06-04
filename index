@@ -668,7 +668,7 @@
         if (savedOp) selectedOpName = savedOp;
         updateSshCredBtn();
 
-        var BG_DEFAULT = 'https://i.pinimg.com/1200x/10/fb/ea/10fbea716a5cc457c8d2dd90a8cd78bf.jpg';
+        var BG_DEFAULT = 'https://i.ibb.co/DDfWXGPK/download.png';
         var bgUrl = storageGet('netsmon_bg') || BG_DEFAULT;
         if (document.getElementById('gif-url-input')) document.getElementById('gif-url-input').value = bgUrl;
 
