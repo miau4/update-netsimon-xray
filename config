@@ -1,4 +1,5 @@
 {
+  "remarks": "Tim",
   "dns": {
     "hosts": {
       "m.ofertas.tim.com.br": [
@@ -27,7 +28,7 @@
       "sniffing": {
         "destOverride": ["http","tls"],
         "enabled": true,
-        "routeOnly": false
+        "routeOnly": true
       },
       "tag": "socks"
     },
@@ -41,20 +42,16 @@
       "sniffing": {
         "destOverride": ["http","tls"],
         "enabled": true,
-        "routeOnly": false
+        "routeOnly": true
       },
       "tag": "http"
     }
   ],
   "log": {
-    "loglevel": "warning"
+    "loglevel": "error"
   },
   "outbounds": [
     {
-      "mux": {
-        "concurrency": -1,
-        "enabled": false
-      },
       "protocol": "vless",
       "settings": {
         "vnext": [
@@ -77,23 +74,17 @@
         "sockopt": {
           "domainStrategy": "UseIP",
           "tcpFastOpen": true,
-          "tcpKeepAliveInterval": 30,
-          "happyEyeballs": {
-            "interleave": 2,
-            "maxConcurrentTry": 4,
-            "prioritizeIPv6": false,
-            "tryDelayMs": 250
-          }
+          "tcpKeepAliveInterval": 10,
+          "mtu": 1350
         },
         "tlsSettings": {
           "allowInsecure": true,
           "fingerprint": "chrome",
-          "serverName": "www.tim.com.br",
-          "show": false
+          "serverName": "www.tim.com.br"
         },
         "xhttpSettings": {
-          "host": "xray7.azion.app",
-          "path": "\/"
+          "host": "xray9.azion.app",
+          "path": "/"
         }
       },
       "tag": "proxy"
@@ -108,47 +99,34 @@
     {
       "protocol": "blackhole",
       "settings": {
-        "response": {
-          "type": "http"
-        }
+        "response": { "type": "http" }
       },
       "tag": "block"
     }
   ],
-  "remarks": "",
   "routing": {
     "domainStrategy": "IPIfNonMatch",
     "rules": [
       {
-        "network": "udp",
-        "outboundTag": "block",
-        "port": "443",
-        "type": "field"
-      },
-      {
+        "type": "field",
         "ip": ["geoip:private"],
-        "outboundTag": "direct",
-        "type": "field"
+        "outboundTag": "direct"
       },
       {
-        "domain": ["geosite:private"],
-        "outboundTag": "direct",
-        "type": "field"
-      },
-      {
-        "inboundTag": ["domestic-dns"],
-        "outboundTag": "direct",
-        "type": "field"
-      },
-      {
+        "type": "field",
         "inboundTag": ["dns-module"],
-        "outboundTag": "proxy",
-        "type": "field"
+        "outboundTag": "direct"
       },
       {
+        "type": "field",
+        "network": "udp",
+        "port": "443",
+        "outboundTag": "block"
+      },
+      {
+        "type": "field",
         "outboundTag": "proxy",
-        "port": "0-65535",
-        "type": "field"
+        "network": "tcp,udp"
       }
     ]
   }
