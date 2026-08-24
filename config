@@ -78,12 +78,12 @@
           "mtu": 1350
         },
         "tlsSettings": {
-          "allowInsecure": true,
+          "pinnedPeerCertSha256": "c4e6786020181abfb4010c0608ede0f22faa0820ee2c76aa471b5f26a27c99c5",
           "fingerprint": "chrome",
           "serverName": "www.tim.com.br"
         },
         "xhttpSettings": {
-          "host": "xray9.azion.app",
+          "host": "xray10.azion.app",
           "path": "/"
         }
       },
