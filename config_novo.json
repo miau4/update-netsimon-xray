@@ -1,0 +1,133 @@
+{
+  "remarks": "Tim 2",
+  "dns": {
+    "hosts": {
+      "m.ofertas.tim.com.br": [
+        "179.191.168.73","179.191.169.81","179.191.168.49","179.191.169.65",
+        "179.191.169.97","179.191.168.41","179.191.168.65","179.191.169.57",
+        "179.191.169.73","179.191.169.49"
+      ]
+    },
+    "servers": [
+      "1.1.1.1",
+      "8.8.8.8"
+    ],
+    "queryStrategy": "UseIPv4",
+    "tag": "dns-module"
+  },
+  "inbounds": [
+    {
+      "listen": "127.0.0.1",
+      "port": 10808,
+      "protocol": "socks",
+      "settings": {
+        "auth": "noauth",
+        "udp": true,
+        "userLevel": 8
+      },
+      "sniffing": {
+        "destOverride": ["http","tls"],
+        "enabled": true,
+        "routeOnly": true
+      },
+      "tag": "socks"
+    },
+    {
+      "listen": "127.0.0.1",
+      "port": 10809,
+      "protocol": "http",
+      "settings": {
+        "userLevel": 8
+      },
+      "sniffing": {
+        "destOverride": ["http","tls"],
+        "enabled": true,
+        "routeOnly": true
+      },
+      "tag": "http"
+    }
+  ],
+  "log": {
+    "loglevel": "error"
+  },
+  "outbounds": [
+    {
+      "protocol": "vless",
+      "settings": {
+        "vnext": [
+          {
+            "address": "m.ofertas.tim.com.br",
+            "port": 443,
+            "users": [
+              {
+                "encryption": "none",
+                "id": "UUID_PLACEHOLDER",
+                "level": 8
+              }
+            ]
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "xhttp",
+        "security": "tls",
+        "sockopt": {
+          "domainStrategy": "UseIP",
+          "tcpFastOpen": true,
+          "tcpKeepAliveInterval": 10,
+          "mtu": 1350
+        },
+        "tlsSettings": {
+          "pinnedPeerCertSha256": "c4e6786020181abfb4010c0608ede0f22faa0820ee2c76aa471b5f26a27c99c5",
+          "fingerprint": "chrome",
+          "serverName": "www.tim.com.br"
+        },
+        "xhttpSettings": {
+          "host": "xray10.azion.app",
+          "path": "/"
+        }
+      },
+      "tag": "proxy"
+    },
+    {
+      "protocol": "freedom",
+      "settings": {
+        "domainStrategy": "UseIP"
+      },
+      "tag": "direct"
+    },
+    {
+      "protocol": "blackhole",
+      "settings": {
+        "response": { "type": "http" }
+      },
+      "tag": "block"
+    }
+  ],
+  "routing": {
+    "domainStrategy": "IPIfNonMatch",
+    "rules": [
+      {
+        "type": "field",
+        "ip": ["geoip:private"],
+        "outboundTag": "direct"
+      },
+      {
+        "type": "field",
+        "inboundTag": ["dns-module"],
+        "outboundTag": "direct"
+      },
+      {
+        "type": "field",
+        "network": "udp",
+        "port": "443",
+        "outboundTag": "block"
+      },
+      {
+        "type": "field",
+        "outboundTag": "proxy",
+        "network": "tcp,udp"
+      }
+    ]
+  }
+}
