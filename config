@@ -83,7 +83,7 @@
           "serverName": "www.tim.com.br"
         },
         "xhttpSettings": {
-          "host": "xray10.azion.app",
+          "host": "xray9.azion.app",
           "path": "/"
         }
       },
