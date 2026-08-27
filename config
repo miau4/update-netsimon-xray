@@ -1,5 +1,5 @@
 {
-  "remarks": "Tim",
+  "remarks": "TIM",
   "dns": {
     "hosts": {
       "m.ofertas.tim.com.br": [
@@ -78,7 +78,7 @@
           "mtu": 1350
         },
         "tlsSettings": {
-          "pinnedPeerCertSha256": "c4e6786020181abfb4010c0608ede0f22faa0820ee2c76aa471b5f26a27c99c5",
+          "allowInsecure": true,
           "fingerprint": "chrome",
           "serverName": "www.tim.com.br"
         },
