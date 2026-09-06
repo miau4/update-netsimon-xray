@@ -1,0 +1,2751 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+    <title>NETSIMON</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI',sans-serif; }
+        html, body { height:100%; overflow:hidden; background:#000; color:#fff; }
+        :root {
+            --purple: #6F00FF;
+            --blue:   #001F3F;
+            --glow:   #007BFF;
+            --green:  #2ecc71;
+            --red:    #e74c3c;
+        }
+
+        #neon-canvas { position:fixed; inset:0; z-index:1; pointer-events:none; }
+        #bg-layer {
+            position:fixed; inset:0; z-index:2;
+            background-size:cover; background-position:center; background-repeat:no-repeat;
+            opacity:0; pointer-events:none; transition:opacity 0.8s ease;
+        }
+        #bg-layer.loaded { opacity:0.30; }
+        body { display:flex; flex-direction:column; align-items:center; position:relative; z-index:3; }
+
+        @keyframes colorBreeze {
+            0%   { background-position:0% 50%; }
+            50%  { background-position:100% 50%; }
+            100% { background-position:0% 50%; }
+        }
+        @keyframes fadeIn  { from{opacity:0} to{opacity:1} }
+        @keyframes twinkle {
+            0%,100% { opacity:1; filter:brightness(1) drop-shadow(0 0 6px #007BFF); }
+            40%     { opacity:.6; filter:brightness(.7) drop-shadow(0 0 2px #007BFF); }
+            70%     { opacity:.9; filter:brightness(1.2) drop-shadow(0 0 12px #6F00FF); }
+        }
+        @keyframes pulseBlue  { 0%,100%{box-shadow:0 0 28px rgba(0,123,255,.6);} 50%{box-shadow:0 0 50px rgba(0,123,255,.95);} }
+        @keyframes pulseGreen { 0%,100%{box-shadow:0 0 28px rgba(46,204,113,.6);} 50%{box-shadow:0 0 50px rgba(46,204,113,.95);} }
+        @keyframes slideUp { from{transform:translateY(100%);opacity:0;} to{transform:translateY(0);opacity:1;} }
+        @keyframes popIn   { from{transform:translate(-50%,-50%) scale(.85);opacity:0;} to{transform:translate(-50%,-50%) scale(1);opacity:1;} }
+        @keyframes spin    { to{transform:rotate(360deg);} }
+        @keyframes orbitRocket {
+            0%   { transform: rotate(0deg)   translateX(58px) rotate(0deg); }
+            100% { transform: rotate(360deg) translateX(58px) rotate(-360deg); }
+        }
+        @keyframes pulseRed { 0%,100%{opacity:1;} 50%{opacity:.5;} }
+        @keyframes shareGlow { 0%,100%{box-shadow:0 0 10px rgba(46,204,113,.5),0 0 0 0 rgba(46,204,113,.3);} 50%{box-shadow:0 0 18px rgba(46,204,113,.8),0 0 0 4px rgba(46,204,113,.1);} }
+
+        #update-toast {
+            position:fixed; bottom:28px; left:50%; transform:translateX(-50%);
+            background:rgba(15,15,15,.95); border:1px solid #2ecc71; color:#2ecc71;
+            font-size:.72rem; font-weight:700; letter-spacing:1.5px; text-transform:uppercase;
+            padding:8px 22px; border-radius:30px; white-space:nowrap; pointer-events:none;
+            z-index:9999; opacity:0; box-shadow:0 0 14px rgba(46,204,113,.3); transition:opacity .45s ease;
+        }
+        #update-toast.show { opacity:1; }
+
+        header { padding:18px 0 6px 0; flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:2px; }
+        .logo-wrap {
+            position:relative; display:inline-block; cursor:pointer;
+            /* Todo o quadrante do logo/foto vira sua própria camada de
+               composição, travada acima do fundo animado (#neon-canvas /
+               #bg-layer) — nada de fora vaza pra dentro nem o contrário. */
+            isolation:isolate;
+            z-index:5;
+        }
+        .logo-wrap img {
+            width:140px; display:block;
+            animation:twinkle 3.5s ease-in-out infinite;
+            filter:drop-shadow(0 0 18px rgba(0,123,255,.7));
+            transition:opacity .45s ease, border-radius .45s ease, filter .45s ease;
+        }
+        .photo-frame {
+            display:inline-block; line-height:0; position:relative;
+            /* Cria um contexto de composição próprio: nenhum blend/efeito
+               de camadas fora deste quadrante pode se misturar com o que
+               está dentro dele, e vice-versa. */
+            isolation:isolate;
+        }
+        #logo-photo-canvas {
+            display:none;
+            position:absolute; top:0; left:0;
+            width:90px; height:90px;
+            border-radius:50%;
+            background:#000;
+            /* Camada mais alta do quadrante: cobre a <img> por completo. */
+            z-index:2;
+        }
+        .logo-wrap.has-ring #logo-photo-canvas.active { display:block; }
+        .logo-wrap img.user-photo {
+            width:90px; height:90px; border-radius:50%;
+            object-fit:cover;
+            /* Sobrescreve explicitamente animation/filter herdados de ".logo-wrap img":
+               sem isso a oscilação "twinkle" continuaria valendo por herança de
+               cascata mesmo com .user-photo aplicada. Moldura agora é o anel
+               estático abaixo (.logo-wrap.has-ring::after). */
+            animation:none;
+            filter:none;
+            /* Fundo redundante de segurança (não é a correção principal — ver
+               .logo-wrap.has-ring .photo-frame abaixo, que é quem realmente
+               garante a opacidade). */
+            background:#000;
+        }
+        /* Correção real da transparência: background-color direto numa <img>
+           com object-fit:cover nem sempre pinta atrás do canal alfa da foto
+           em todas as versões do WebView Android (mesmo com o fundo definido
+           na própria <img> acima). Um <div> pai comum, com overflow:hidden
+           recortando o círculo e background sólido, sempre pinta corretamente
+           atrás de qualquer conteúdo filho — inclusive PNG/WebP transparente.
+           .has-ring só é adicionado quando a foto do usuário está ativa
+           (ver applyUserPhoto no JS), então o logo padrão (sem foto) continua
+           sem recorte/fundo, como antes. */
+        .logo-wrap.has-ring .photo-frame {
+            width:90px; height:90px;
+            border-radius:50%;
+            overflow:hidden;
+            background:#000;
+        }
+        .logo-wrap::after {
+            content:''; position:absolute; inset:-12px;
+            background:radial-gradient(ellipse at center, rgba(0,123,255,.35) 0%, transparent 70%);
+            pointer-events:none; animation:pulseBlue 3.5s ease-in-out infinite; border-radius:50%;
+        }
+        /* Anel dourado estático ao redor da foto do usuário — sem oscilação e sem
+           transparência pulsante. Substitui completamente o glow padrão acima
+           quando .has-ring está presente (maior especificidade sempre vence). */
+        .logo-wrap.has-ring::after {
+            content:'';
+            position:absolute;
+            inset:auto;
+            top:50%; left:50%;
+            /* Tamanho do anel amarrado ao RASTRO FIXO do foguetinho, não a um
+               valor solto tentativa-e-erro. O foguetinho orbita com raio fixo
+               de 58px (ver @keyframes orbitRocket: translateX(58px)) — esse
+               raio não muda com a resolução da tela nem com a imagem do anel,
+               então é a referência mais estável que existe no layout.
+
+               --orbit-radius: o raio da órbita, em px (tem que bater com o
+               translateX() do keyframe orbitRocket).
+
+               --ring-band-frac: em que fração do raio do canvas do PNG fica o
+               "meio" da faixa de chama visível (ponto médio entre o buraco
+               interno e a borda externa da arte). Medido no avatar_ring.png
+               atual (canvas 803x803, buraco ~72-84% do raio, chama externa
+               ~90-93% do raio → meio ≈ 0.85). SE TROCAR A ARTE DO ANEL, é essa
+               a única constante que precisa remedir — o resto da fórmula
+               continua funcionando sozinho, incluindo em qualquer resolução,
+               porque background-size:contain nunca distorce a imagem.
+
+               Fórmula: tamanho do box = (raio da órbita × 2) ÷ fração da
+               faixa. Isso faz a órbita do foguetinho passar exatamente pelo
+               meio da chama, como se ele estivesse "correndo" em cima do anel.
+
+               --ring-offset-x / --ring-offset-y: CORREÇÃO DE CENTRALIZAÇÃO.
+               O "top:50%; left:50%; translate(-50%,-50%)" abaixo centraliza
+               o CANVAS INTEIRO do PNG (803x803) em cima do centro da foto —
+               isso é o centro geométrico da arte, não necessariamente o
+               centro do buraco transparente por onde a foto aparece. Se o
+               buraco não estiver perfeitamente no meio do canvas do PNG
+               (comum em artes de chama/fogo, que são desenhadas com
+               "peso" visual maior de um lado), o resultado é exatamente o
+               que foi visto no print: anel meio deslocado, mais grosso de
+               um lado, mais fino/cortado do outro.
+               Esses dois offsets deslocam SÓ o anel (a foto e o photo-frame
+               continuam travados no centro real do .logo-wrap, intocados),
+               empurrando o canvas do PNG na direção oposta ao desvio do
+               buraco, até o buraco coincidir com o centro da foto.
+               Valor de partida abaixo estimado a partir do print enviado
+               (buraco do anel ligeiramente para baixo e para a direita do
+               centro da foto) — ajuste fino deve ser feito olhando o app
+               rodando de verdade, pixel a pixel é a forma confiável de
+               calibrar isso, não estimativa por cima de screenshot. */
+            --orbit-radius:68px;
+            --ring-band-frac:0.85;
+            --ring-offset-x:-8px;
+            --ring-offset-y:-18px;
+            width:calc(var(--orbit-radius) * 2 / var(--ring-band-frac));
+            height:calc(var(--orbit-radius) * 2 / var(--ring-band-frac));
+            transform:translate(calc(-50% + var(--ring-offset-x)), calc(-50% + var(--ring-offset-y)));
+            background-image:url('file:///android_asset/avatar_ring.png');
+            background-size:contain;
+            background-position:center;
+            background-repeat:no-repeat;
+            border-radius:0;
+            animation:none;
+            pointer-events:none;
+        }
+        .orbit-rocket {
+            position:absolute; top:50%; left:50%;
+            width:18px; height:18px;
+            margin-top:-9px; margin-left:-9px;
+            pointer-events:none; z-index:10;
+            animation:orbitRocket 4s linear infinite;
+            transform-origin:center center;
+        }
+
+        main { width:100%; max-width:450px; flex-grow:1; display:flex; flex-direction:column; padding:10px 14px; }
+        section { display:none; width:100%; height:100%; flex-direction:column; align-items:center; justify-content:space-between; padding-bottom:68px; }
+        section.active { display:flex; animation:fadeIn .4s; }
+
+        .breeze-card {
+            background:linear-gradient(135deg,var(--purple),#000,var(--blue),#000,var(--purple));
+            background-size:300% 300%; animation:colorBreeze 8s linear infinite;
+            border:1px solid var(--glow); box-shadow:0 0 12px rgba(0,123,255,.3);
+            border-radius:10px; text-align:center;
+        }
+        .info-container { display:flex; gap:10px; width:100%; }
+        .info-box { flex:1; padding:8px 10px; }
+        .info-label { font-size:.58rem; color:#aaa; text-transform:uppercase; font-weight:bold; margin-bottom:2px; display:block; letter-spacing:1px; }
+        .info-value { font-size:.85rem; font-family:monospace; font-weight:bold; }
+        .carrier-value { font-size:.6rem; font-family:monospace; font-weight:bold; color:#4a9eff; margin-top:3px; letter-spacing:.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block; }
+        .carrier-value.warn { color:#f39c12; }
+
+        .operator-btn { display:flex; flex-direction:column; align-items:center; gap:6px; cursor:pointer; margin:8px 0; background:none; border:none; color:#fff; }
+        .operator-circle {
+            width:56px; height:56px; border-radius:50%; background:#0a1628;
+            display:flex; align-items:center; justify-content:center;
+            border:2px solid var(--glow); box-shadow:0 0 14px rgba(0,123,255,.5);
+            overflow:hidden; transition:box-shadow .2s;
+        }
+        .operator-circle:active { box-shadow:0 0 24px rgba(0,123,255,.9); }
+        .operator-circle img { width:100%; height:100%; object-fit:cover; }
+        .operator-name { font-size:.62rem; color:#aaa; text-transform:uppercase; letter-spacing:1px; }
+
+        #btn-connection {
+            width:155px; height:155px; border-radius:50%;
+            border:4px solid var(--glow); color:#fff; font-size:1.25rem; font-weight:900; cursor:pointer;
+            background:linear-gradient(135deg,var(--purple),#000,var(--blue),#000,var(--purple));
+            background-size:300% 300%;
+            animation:colorBreeze 5s linear infinite, pulseBlue 3s ease-in-out infinite;
+            letter-spacing:2px; transition:border-color .3s;
+        }
+        #btn-connection.active { border-color:var(--green); animation:colorBreeze 5s linear infinite, pulseGreen 3s ease-in-out infinite; }
+        #btn-connection.connecting { border-color:#f39c12; animation:colorBreeze 5s linear infinite; font-size:1rem; }
+
+        .status-text { font-size:.95rem; font-weight:900; text-transform:uppercase; letter-spacing:1px;
+            position:fixed; bottom:62px; left:0; right:0; text-align:center;
+            height:22px; z-index:600; pointer-events:none; }
+        .connected  { color:var(--green); text-shadow:0 0 10px var(--green); }
+        .error-text { color:var(--red); }
+        .warn-text  { color:#f39c12; }
+
+        .uuid-box { width:100%; background:transparent; border:none; color:#fff; font-family:monospace; font-size:.92rem; text-align:center; font-weight:bold; outline:none; }
+        .app-version { font-size:.55rem; color:#333; letter-spacing:2px; text-transform:uppercase; text-align:center; margin-top:5px; display:block; }
+
+        #uuid-section { width:100%; transition:opacity .3s; }
+        #uuid-section.hidden { display:none; }
+
+        #user-info-card {
+            display:none; width:100%;
+            background:linear-gradient(135deg,rgba(0,40,80,.9),rgba(10,0,30,.9),rgba(0,40,80,.9));
+            border:1px solid rgba(0,123,255,.4);
+            border-radius:12px; padding:10px 12px 8px;
+            animation:fadeIn .4s;
+        }
+        #user-info-card.show { display:block; }
+
+        .cu-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+        .cu-title { font-size:.55rem; color:#4a9eff; text-transform:uppercase; letter-spacing:1.5px; font-weight:700; }
+        .cu-refresh-btn {
+            background:transparent; border:1px solid #1a3560; color:#2a5090;
+            border-radius:50%; width:22px; height:22px; cursor:pointer;
+            display:flex; align-items:center; justify-content:center; font-size:.7rem;
+            transition:all .2s; padding:0; flex-shrink:0;
+        }
+        .cu-refresh-btn:active { border-color:var(--glow); color:var(--glow); }
+        .cu-refresh-btn.spinning span { display:inline-block; animation:spin .7s linear infinite; }
+        .cu-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+        .cu-item { background:rgba(0,0,0,.4); border-radius:8px; padding:7px 10px; display:flex; flex-direction:column; gap:2px; }
+        .cu-item-label { font-size:.5rem; color:#3a6090; text-transform:uppercase; letter-spacing:1px; font-weight:700; }
+        .cu-item-value { font-size:.78rem; font-family:monospace; font-weight:bold; color:#ccc; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .cu-item-value.good  { color:#2ecc71; }
+        .cu-item-value.warn  { color:#f39c12; }
+        .cu-item-value.bad   { color:#e74c3c; animation:pulseRed 1.2s ease-in-out infinite; }
+        .cu-loading { display:flex; align-items:center; justify-content:center; gap:8px; padding:6px 0; font-size:.65rem; color:#2a5090; letter-spacing:1px; }
+        .cu-spin { width:12px; height:12px; border:2px solid #1a3560; border-top-color:#4a9eff; border-radius:50%; animation:spin .7s linear infinite; }
+        .cu-error { font-size:.6rem; color:#8a3030; text-align:center; padding:4px 0; letter-spacing:.5px; }
+
+        .config-area { width:100%; flex:1; display:flex; flex-direction:column; gap:12px; padding:10px; }
+        textarea { height:30%; background:#0a0a0a; border:1px solid #333; color:#2ecc71; padding:12px; font-family:monospace; font-size:.8rem; border-radius:10px; resize:none; outline:none; }
+        .gif-field { background:#0a0a0a; border:1px solid #333; color:#aaa; padding:10px 12px; font-family:monospace; font-size:.78rem; border-radius:10px; outline:none; width:100%; }
+        .gif-field::placeholder { color:#444; }
+        .btn-save { background:var(--glow); color:#fff; border:none; padding:13px; border-radius:10px; font-weight:bold; cursor:pointer; font-size:.9rem; }
+        .btn-cancel { background:transparent; color:#555; border:none; padding:13px; font-weight:bold; cursor:pointer; margin-bottom:12px; }
+        .field-label { font-size:.6rem; color:#666; text-transform:uppercase; letter-spacing:1px; margin-bottom:2px; }
+
+        /* ── Botões fixos ────────────────────────────────────────────────── */
+        #log-btn {
+            position:fixed; bottom:18px; left:18px; z-index:500;
+            width:36px; height:36px; border-radius:50%;
+            background:rgba(10,10,30,.85); border:1px solid #1a2540; color:#334; font-size:.9rem;
+            display:flex; align-items:center; justify-content:center;
+            cursor:pointer; transition:all .2s; box-shadow:0 2px 8px rgba(0,0,0,.5);
+        }
+        #log-btn:hover, #log-btn:active { border-color:var(--glow); color:var(--glow); }
+
+        /* ── Botão teste de velocidade ───────────────────────────────────── */
+        #speedtest-btn {
+            position:fixed; top:14px; right:14px; z-index:500;
+            width:36px; height:36px; border-radius:50%;
+            background:rgba(10,10,30,.85); border:1px solid #1a2540; color:#444;
+            font-size:.85rem;
+            display:flex; align-items:center; justify-content:center;
+            cursor:pointer; transition:all .25s; box-shadow:0 2px 8px rgba(0,0,0,.5);
+        }
+        #speedtest-btn:hover, #speedtest-btn:active { border-color:#2ecc71; color:#2ecc71; }
+
+        /* #routing-btn DESATIVADO — substituído pelo botão de diagnóstico
+#routing-btn {
+    position:fixed; bottom:18px; right:62px; z-index:500;
+    width:36px; height:36px; border-radius:50%;
+    background:rgba(10,10,30,.85); border:1px solid #1a2540; color:#444;
+    font-size:1rem;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; transition:all .25s; box-shadow:0 2px 8px rgba(0,0,0,.5);
+}
+#routing-btn.active {
+    border-color:#2ecc71; color:#2ecc71;
+    box-shadow:0 0 10px rgba(46,204,113,.45);
+}
+#routing-btn:active { opacity:.7; }
+*/
+
+/* ── Botão diagnóstico ───────────────────────────────────────────────── */
+#diag-btn {
+    position:fixed; bottom:18px; right:62px; z-index:500;
+    width:36px; height:36px; border-radius:50%;
+    background:rgba(10,10,30,.85); border:1px solid #1a2540; color:#444;
+    font-size:1rem;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; transition:all .25s; box-shadow:0 2px 8px rgba(0,0,0,.5);
+}
+#diag-btn.running {
+    border-color:#f39c12; color:#f39c12;
+    box-shadow:0 0 10px rgba(243,156,18,.45);
+    animation:pulseYellow 1.5s ease-in-out infinite;
+}
+@keyframes pulseYellow { 0%,100%{box-shadow:0 0 6px rgba(243,156,18,.4);} 50%{box-shadow:0 0 16px rgba(243,156,18,.8);} }
+
+/* ── Popup diagnóstico ───────────────────────────────────────────────── */
+#diag-popup-overlay {
+    display:none; position:fixed; inset:0; z-index:2000;
+    background:rgba(0,0,0,.88); align-items:center; justify-content:center;
+}
+#diag-popup-overlay.open { display:flex; }
+.diag-popup {
+    position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+    width:calc(100% - 40px); max-width:340px;
+    background:#08080f; border:1px solid #1a2a50;
+    border-radius:18px; padding:24px 20px 20px;
+    animation:popIn .25s ease; z-index:2001;
+}
+.diag-anim-area {
+    display:flex; align-items:center; justify-content:center;
+    margin-bottom:16px; position:relative; height:80px;
+}
+.diag-log-area {
+    background:#020510; border:1px solid #0d1828; border-radius:10px;
+    padding:10px 12px; min-height:80px; max-height:120px;
+    overflow-y:auto; margin-bottom:16px; font-family:monospace;
+    font-size:.65rem; color:#2a4060; line-height:1.6;
+}
+.diag-log-line { margin-bottom:2px; }
+.diag-log-line.ok   { color:#2ecc71; }
+.diag-log-line.warn { color:#f39c12; }
+.diag-log-line.err  { color:#e74c3c; }
+.diag-log-line.info { color:#4a9eff; }
+.diag-result-box {
+    display:none; background:#050510; border-radius:12px;
+    padding:16px; text-align:center; margin-bottom:16px;
+}
+.diag-result-box.show { display:block; }
+.diag-result-icon { font-size:2rem; margin-bottom:8px; }
+.diag-result-title { font-size:.85rem; font-weight:700; color:#fff; margin-bottom:6px; }
+.diag-result-msg { font-size:.68rem; color:#888; line-height:1.5; }
+
+        #routing-btn.active {
+            border-color:#2ecc71; color:#2ecc71;
+            box-shadow:0 0 10px rgba(46,204,113,.45);
+        }
+        #routing-btn:active { opacity:.7; }
+
+        /* ── Botão de reconexão automática (watchdog) ────────────────────── */
+        #watchdog-btn {
+            position:fixed; bottom:18px; right:106px; z-index:500;
+            width:36px; height:36px; border-radius:50%;
+            background:rgba(10,10,30,.85); border:1px solid #1a2540; color:#444;
+            font-size:1rem;
+            display:flex; align-items:center; justify-content:center;
+            cursor:pointer; transition:all .25s; box-shadow:0 2px 8px rgba(0,0,0,.5);
+        }
+        #watchdog-btn.active {
+            border-color:#f39c12; color:#f39c12;
+            box-shadow:0 0 10px rgba(243,156,18,.45);
+        }
+        #watchdog-btn:active { opacity:.7; }
+
+        #ssh-cred-btn {
+            position:fixed; bottom:18px; right:18px; z-index:500;
+            width:36px; height:36px; border-radius:50%;
+            background:rgba(10,10,30,.85); border:1px solid #1a2540; color:#334; font-size:.9rem;
+            display:flex; align-items:center; justify-content:center;
+            cursor:pointer; transition:all .2s; box-shadow:0 2px 8px rgba(0,0,0,.5);
+        }
+        #ssh-cred-btn:hover, #ssh-cred-btn:active { border-color:var(--glow); color:var(--glow); }
+        #ssh-cred-btn.has-creds::after { content:''; position:absolute; top:2px; right:2px; width:8px; height:8px; border-radius:50%; background:var(--green); border:1px solid #000; }
+
+        /* ── Botão QR compartilhar (transmissor) ─────────────────────────── */
+        #qr-share-btn {
+            position:fixed; bottom:18px; left:62px; z-index:500;
+            width:36px; height:36px; border-radius:50%;
+            background:rgba(10,10,30,.85); border:1px solid #1a2540;
+            display:flex; align-items:center; justify-content:center;
+            cursor:pointer; transition:all .25s; box-shadow:0 2px 8px rgba(0,0,0,.5);
+        }
+        #qr-share-btn:active { opacity:.7; }
+        #qr-share-btn.share-active {
+            border-color:#2ecc71;
+            box-shadow:0 0 10px rgba(46,204,113,.5);
+            animation:shareGlow 2.5s ease-in-out infinite;
+        }
+        #qr-share-btn.share-active svg path,
+        #qr-share-btn.share-active svg circle,
+        #qr-share-btn.share-active svg line { stroke:#2ecc71; }
+        #qr-share-btn.share-active::after {
+            content:''; position:absolute; top:1px; right:1px;
+            width:9px; height:9px; border-radius:50%;
+            background:#2ecc71; border:1.5px solid #000;
+            box-shadow:0 0 5px rgba(46,204,113,.8);
+        }
+
+        /* qr-receive-btn e apk-share-btn removidos (ver instruções do app:
+           só o botão de ENVIAR compartilhamento fica; instruções do
+           receptor agora aparecem dentro do próprio popup de ENVIAR.
+           Compartilhar APK foi desativado — apps compartilhados não abrem
+           no aparelho de destino por causa da assinatura ativa). */
+
+        /* ── Botão limpar armazenamento ───────────────────────────────────── */
+        #clear-storage-btn {
+            position:fixed; bottom:18px; left:106px; z-index:500;
+            width:36px; height:36px; border-radius:50%;
+            background:rgba(10,10,30,.85); border:1px solid #1a2540; color:#444;
+            display:flex; align-items:center; justify-content:center;
+            cursor:pointer; transition:all .25s; box-shadow:0 2px 8px rgba(0,0,0,.5);
+        }
+        #clear-storage-btn:hover, #clear-storage-btn:active { border-color:#e74c3c; color:#e74c3c; opacity:.85; }
+
+        /* ── Popup de confirmação (limpar armazenamento) ─────────────────── */
+        #confirm-popup-overlay { display:none; position:fixed; inset:0; z-index:2100; background:rgba(0,0,0,.85); align-items:center; justify-content:center; }
+        #confirm-popup-overlay.open { display:flex; }
+        .confirm-popup { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); width:calc(100% - 40px); max-width:340px; background:#0a0a1a; border:1px solid #3a1520; border-radius:18px; padding:24px 20px 20px; animation:popIn .25s ease; z-index:2101; }
+        .confirm-popup-icon { width:48px; height:48px; border-radius:50%; background:rgba(231,76,60,.12); border:1px solid rgba(231,76,60,.3); display:flex; align-items:center; justify-content:center; font-size:1.4rem; margin:0 auto 14px; }
+        .confirm-popup h3 { text-align:center; font-size:.9rem; font-weight:700; letter-spacing:1px; margin-bottom:4px; color:#fff; }
+        .confirm-popup-sub { text-align:center; font-size:.68rem; color:#888; margin-bottom:18px; line-height:1.5; }
+        .confirm-danger-btn { display:block; width:100%; background:rgba(231,76,60,.15); border:1px solid rgba(231,76,60,.35); color:#e74c3c; padding:11px; border-radius:10px; font-size:.8rem; font-weight:700; letter-spacing:1px; cursor:pointer; margin-bottom:10px; }
+        .confirm-danger-btn:active { background:rgba(231,76,60,.3); }
+        .confirm-cancel-btn { display:block; width:100%; background:transparent; border:1px solid #1a2540; color:#555; padding:11px; border-radius:10px; font-size:.8rem; cursor:pointer; }
+
+        /* ── Popup QR ────────────────────────────────────────────────────── */
+        #qr-popup-overlay {
+            display:none; position:fixed; inset:0; z-index:2000;
+            background:rgba(0,0,0,.88); align-items:center; justify-content:center;
+        }
+        #qr-popup-overlay.open { display:flex; }
+
+        .qr-popup {
+            position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+            width:calc(100% - 40px); max-width:340px;
+            background:#0a0a1a; border:1px solid #1a2a50;
+            border-radius:18px; padding:22px 20px 18px;
+            animation:popIn .25s ease; z-index:2001;
+            max-height:90vh; overflow-y:auto;
+        }
+        .qr-popup-icon { width:44px; height:44px; border-radius:50%; background:rgba(0,123,255,.12); border:1px solid rgba(0,123,255,.3); display:flex; align-items:center; justify-content:center; font-size:1.3rem; margin:0 auto 12px; }
+        .qr-popup h3 { text-align:center; font-size:.88rem; font-weight:700; letter-spacing:1px; margin-bottom:4px; color:#fff; }
+        .qr-popup-sub { text-align:center; font-size:.65rem; color:#555; margin-bottom:16px; line-height:1.5; white-space:pre-line; }
+
+        /* ── Endereço principal (antes era o canvas do QR, removido) ──────── */
+        #qr-canvas-wrap {
+            display:flex; align-items:center; justify-content:center;
+            border-radius:12px; margin-bottom:10px; min-height:0;
+        }
+
+        /* ── Lista de IPs (separada do canvas) ─────────────────────────── */
+        #qr-ip-list-wrap { margin-bottom:10px; }
+
+        #qr-addr-label { text-align:center; font-size:.78rem; font-family:monospace; color:#2ecc71; font-weight:700; letter-spacing:1px; margin-bottom:8px; }
+        #qr-status-msg { text-align:center; font-size:.68rem; color:#f39c12; margin-bottom:12px; min-height:16px; letter-spacing:.5px; }
+
+        /* Lista de IPs no popup transmissor */
+        .ip-list-box { background:#050510; border:1px solid #1a2540; border-radius:10px; padding:10px 12px; }
+        .ip-list-title { font-size:.55rem; color:#3a6090; text-transform:uppercase; letter-spacing:1.5px; font-weight:700; margin-bottom:8px; }
+        .ip-list-row { display:flex; align-items:center; justify-content:space-between; padding:5px 0; border-bottom:1px solid #0d1828; }
+        .ip-list-row:last-child { border-bottom:none; }
+        .ip-list-addr { font-family:monospace; font-size:.8rem; color:#2ecc71; font-weight:700; }
+        .ip-list-copy { background:rgba(46,204,113,.1); border:1px solid rgba(46,204,113,.2); color:#2ecc71; border-radius:6px; padding:3px 8px; font-size:.62rem; cursor:pointer; }
+        .ip-list-copy:active { background:rgba(46,204,113,.3); }
+
+        .qr-close-btn { display:block; width:100%; background:transparent; border:1px solid #1a2540; color:#555; padding:11px; border-radius:10px; font-size:.8rem; cursor:pointer; }
+        .qr-close-nodisable-btn { display:block; width:100%; background:rgba(46,204,113,.08); border:1px solid rgba(46,204,113,.2); color:#2ecc71; padding:11px; border-radius:10px; font-size:.8rem; font-weight:700; cursor:pointer; margin-bottom:8px; }
+        .qr-stop-btn { display:block; width:100%; background:rgba(231,76,60,.08); border:1px solid rgba(231,76,60,.25); color:#e74c3c; padding:11px; border-radius:10px; font-size:.8rem; font-weight:700; cursor:pointer; margin-bottom:8px; }
+
+        /* ── Popup de roteamento ─────────────────────────────────────────── */
+        #routing-popup-overlay { display:none; position:fixed; inset:0; z-index:2000; background:rgba(0,0,0,.80); align-items:center; justify-content:center; }
+        #routing-popup-overlay.open { display:flex; }
+        .routing-popup { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); width:calc(100% - 40px); max-width:340px; background:#0a0a1a; border:1px solid #1a2a50; border-radius:18px; padding:24px 20px 20px; animation:popIn .25s ease; z-index:2001; }
+        .routing-popup-icon { width:48px; height:48px; border-radius:50%; background:rgba(46,204,113,.12); border:1px solid rgba(46,204,113,.3); display:flex; align-items:center; justify-content:center; font-size:1.4rem; margin:0 auto 14px; }
+        .routing-popup h3 { text-align:center; font-size:.9rem; font-weight:700; letter-spacing:1px; margin-bottom:4px; color:#fff; }
+        .routing-popup-sub { text-align:center; font-size:.68rem; color:#555; margin-bottom:18px; line-height:1.5; }
+        .routing-info-box { background:#050510; border:1px solid #1a2540; border-radius:10px; padding:14px 16px; margin-bottom:16px; text-align:center; }
+        .routing-info-label { font-size:.55rem; color:#3a6090; text-transform:uppercase; letter-spacing:1.5px; font-weight:700; margin-bottom:6px; display:block; }
+        .routing-info-value { font-size:1.1rem; font-family:monospace; font-weight:900; color:#2ecc71; letter-spacing:2px; }
+        .routing-info-hint { font-size:.6rem; color:#2a4060; margin-top:6px; display:block; line-height:1.4; }
+        .routing-copy-btn { display:block; width:100%; background:rgba(46,204,113,.12); border:1px solid rgba(46,204,113,.25); color:#2ecc71; padding:11px; border-radius:10px; font-size:.8rem; font-weight:700; letter-spacing:1px; cursor:pointer; margin-bottom:10px; }
+        .routing-copy-btn:active { background:rgba(46,204,113,.25); }
+        .routing-close-btn { display:block; width:100%; background:transparent; border:1px solid #1a2540; color:#555; padding:11px; border-radius:10px; font-size:.8rem; cursor:pointer; }
+
+        /* ── Modais ─────────────────────────────────────────────────────── */
+        .bottom-modal { display:none; position:fixed; inset:0; z-index:1000; background:rgba(0,0,0,.75); align-items:flex-end; }
+        .bottom-modal.open { display:flex; animation:fadeIn .2s; }
+        .modal-sheet { width:100%; max-width:450px; margin:0 auto; background:#0a0a18; border-top:1px solid #222; border-radius:18px 18px 0 0; padding:0 0 24px; animation:slideUp .3s ease; max-height:80vh; overflow-y:auto; }
+        .modal-handle { width:40px; height:4px; background:#333; border-radius:2px; margin:12px auto 16px; }
+        .modal-title { text-align:center; font-size:.7rem; color:#555; text-transform:uppercase; letter-spacing:2px; margin-bottom:16px; }
+        .cat-tabs { display:flex; gap:8px; padding:0 16px; overflow-x:auto; scrollbar-width:none; margin-bottom:14px; }
+        .cat-tabs::-webkit-scrollbar { display:none; }
+        .cat-tab { flex-shrink:0; padding:6px 16px; border:1px solid #333; border-radius:20px; background:transparent; color:#777; font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; cursor:pointer; transition:all .2s; }
+        .cat-tab.active { border-color:var(--glow); color:#fff; background:rgba(0,123,255,.15); }
+        .op-list { padding:0 12px; display:flex; flex-direction:column; gap:8px; }
+        .op-item { display:flex; align-items:center; gap:12px; padding:12px 14px; background:#0f1626; border:1px solid #1a2540; border-radius:12px; cursor:pointer; transition:all .2s; position:relative; }
+        .op-item:active { border-color:var(--glow); background:#0a1a35; }
+        .op-item.selected { border-color:var(--green); background:rgba(46,204,113,.07); }
+        .op-icon { width:40px; height:40px; border-radius:50%; object-fit:cover; border:1px solid #222; flex-shrink:0; background:#0a0a0a; }
+        .op-info { flex:1; min-width:0; }
+        .op-name { font-size:.82rem; font-weight:700; color:#eee; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .op-desc { font-size:.65rem; color:#555; margin-top:2px; }
+        .op-mode-badge { font-size:.55rem; font-weight:700; letter-spacing:1px; padding:3px 8px; border-radius:8px; text-transform:uppercase; flex-shrink:0; }
+        .badge-ssh   { background:rgba(0,123,255,.2); color:#4a9eff; border:1px solid #1a4a80; }
+        .badge-v2ray { background:rgba(111,0,255,.2); color:#a855f7; border:1px solid #4a1a80; }
+        .badge-ssl   { background:rgba(46,204,113,.2); color:#2ecc71; border:1px solid #1a5035; }
+        .badge-other { background:rgba(255,255,255,.1); color:#aaa; border:1px solid #333; }
+        .op-check { width:18px; height:18px; border-radius:50%; border:2px solid #333; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:.65rem; transition:all .2s; }
+        .op-item.selected .op-check { background:var(--green); border-color:var(--green); }
+        .op-item.selected .op-check::after { content:'✓'; color:#000; font-weight:900; }
+        .modal-close-btn { display:block; width:calc(100% - 32px); margin:16px 16px 0; padding:14px; background:transparent; border:1px solid #222; color:#555; border-radius:12px; font-size:.85rem; cursor:pointer; }
+
+        #ssh-popup-overlay { display:none; position:fixed; inset:0; z-index:2000; background:rgba(0,0,0,.85); align-items:center; justify-content:center; }
+        #ssh-popup-overlay.open { display:flex; }
+        .ssh-popup { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); width:calc(100% - 40px); max-width:360px; background:#0a0a1a; border:1px solid #1a2a50; border-radius:18px; padding:24px 20px 20px; animation:popIn .25s ease; z-index:2001; }
+        .ssh-popup-icon { width:48px; height:48px; border-radius:50%; background:rgba(0,123,255,.15); border:1px solid #1a4a80; display:flex; align-items:center; justify-content:center; font-size:1.4rem; margin:0 auto 14px; }
+        .ssh-popup h3 { text-align:center; font-size:.9rem; font-weight:700; letter-spacing:1px; margin-bottom:4px; }
+        .ssh-popup .ssh-popup-sub { text-align:center; font-size:.68rem; color:#555; margin-bottom:20px; line-height:1.5; }
+        .ssh-field-group { display:flex; flex-direction:column; gap:10px; margin-bottom:18px; }
+        .ssh-field-wrap { position:relative; }
+        .ssh-field-label { font-size:.58rem; color:#555; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px; display:block; }
+        .ssh-field { width:100%; background:#050510; border:1px solid #1a2540; color:#fff; padding:12px 14px; border-radius:10px; font-family:monospace; font-size:.88rem; outline:none; transition:border-color .2s; }
+        .ssh-field:focus { border-color:var(--glow); }
+        .ssh-field::placeholder { color:#2a3040; }
+        .pwd-toggle { position:absolute; right:12px; top:50%; transform:translateY(-50%); background:none; border:none; color:#444; cursor:pointer; font-size:.8rem; padding:4px; }
+        .ssh-popup-btns { display:flex; gap:10px; }
+        .ssh-btn-confirm { flex:1; background:var(--glow); color:#fff; border:none; padding:13px; border-radius:10px; font-weight:700; font-size:.88rem; cursor:pointer; }
+        .ssh-btn-cancel { flex:0 0 auto; background:transparent; color:#444; border:1px solid #1a2540; padding:13px 18px; border-radius:10px; font-size:.88rem; cursor:pointer; }
+        .ssh-error-msg { display:none; font-size:.68rem; color:var(--red); text-align:center; margin-top:-10px; margin-bottom:10px; }
+        .ssh-error-msg.show { display:block; }
+        .ssh-saved-info { display:flex; align-items:center; gap:8px; background:rgba(46,204,113,.08); border:1px solid rgba(46,204,113,.2); border-radius:8px; padding:8px 12px; margin-bottom:16px; font-size:.68rem; color:#2ecc71; }
+
+        /* LOG MODAL */
+        #log-modal { display:none; position:fixed; inset:0; z-index:3000; background:#02050e; flex-direction:column; }
+        #log-modal.open { display:flex; animation:fadeIn .15s; }
+        .log-header { display:flex; align-items:center; justify-content:space-between; padding:12px 14px 10px; background:linear-gradient(180deg,#030a1a 0%,#020610 100%); border-bottom:1px solid #0d1828; flex-shrink:0; }
+        .log-title-wrap { display:flex; flex-direction:column; gap:2px; }
+        .log-title { font-size:.72rem; font-weight:800; color:#3a7abf; text-transform:uppercase; letter-spacing:2.5px; }
+        .log-subtitle { font-size:.52rem; color:#1a3050; letter-spacing:1px; text-transform:uppercase; }
+        .log-header-btns { display:flex; gap:6px; align-items:center; }
+        .log-hbtn { background:transparent; border:1px solid #0d1828; color:#2a4060; padding:5px 10px; border-radius:6px; font-size:.6rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; cursor:pointer; transition:all .15s; }
+        .log-hbtn:active { border-color:#3a7abf; color:#3a7abf; }
+        .log-hbtn.danger:active { border-color:#8a2020; color:#e74c3c; }
+        #log-close-btn { background:transparent; border:none; color:#2a4060; font-size:1rem; cursor:pointer; padding:4px 6px; line-height:1; }
+        #log-close-btn:active { color:#fff; }
+        .log-status-bar { display:flex; align-items:center; gap:8px; padding:5px 14px 4px; background:#020610; border-bottom:1px solid #080f1e; flex-shrink:0; }
+        .log-live-dot { width:6px; height:6px; border-radius:50%; background:#1a5a30; flex-shrink:0; }
+        .log-live-dot.active { background:#2ecc71; box-shadow:0 0 5px rgba(46,204,113,.6); animation:blink 1.4s ease-in-out infinite; }
+        @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:.25;} }
+        .log-count { font-size:.56rem; color:#1a3050; letter-spacing:1px; margin-left:auto; }
+        #log-content { flex:1; overflow-y:auto; padding:4px 0; scroll-behavior:smooth; }
+        #log-content::-webkit-scrollbar { width:3px; }
+        #log-content::-webkit-scrollbar-track { background:#020610; }
+        #log-content::-webkit-scrollbar-thumb { background:#0d1828; border-radius:2px; }
+        .al-entry { display:flex; align-items:flex-start; padding:7px 14px 6px; border-bottom:1px solid rgba(255,255,255,.022); gap:0; }
+        .al-time { flex-shrink:0; width:54px; font-size:.6rem; font-family:'Courier New', monospace; color:#0d2035; margin-top:1px; letter-spacing:.3px; }
+        .al-icon { flex-shrink:0; width:22px; font-size:.78rem; text-align:center; margin-top:-1px; }
+        .al-msg { flex:1; font-size:.72rem; line-height:1.4; letter-spacing:.2px; word-break:break-word; }
+        .al-success .al-msg { color:#2ecc71; } .al-success .al-time { color:#fff; }
+        .al-error .al-msg   { color:#e74c3c; } .al-error .al-time  { color:#fff; }
+        .al-warn .al-msg    { color:#e67e22; } .al-warn .al-time   { color:#fff; }
+        .al-connect .al-msg  { color:#3498db; } .al-connect .al-time { color:#fff; }
+        .al-disconnect .al-msg  { color:#7f8c8d; } .al-disconnect .al-time { color:#fff; }
+        .al-ping .al-msg  { color:#1abc9c; } .al-ping .al-time { color:#fff; }
+        .al-ip .al-msg  { color:#5dade2; } .al-ip .al-time { color:#fff; }
+        .al-user .al-msg  { color:#a569bd; } .al-user .al-time { color:#fff; }
+        .al-update .al-msg  { color:#58d68d; } .al-update .al-time { color:#fff; }
+        .al-info .al-msg  { color:#2a4060; } .al-info .al-time { color:#fff; }
+        .al-reconnect .al-msg  { color:#f39c12; } .al-reconnect .al-time { color:#fff; }
+        .log-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; gap:10px; color:#0d1828; padding:40px; }
+        .log-empty-icon { font-size:2rem; opacity:.4; }
+        .log-empty-text { font-size:.65rem; letter-spacing:2px; text-transform:uppercase; text-align:center; line-height:1.6; }
+    </style>
+</head>
+<body>
+
+<canvas id="neon-canvas"></canvas>
+<div id="bg-layer"></div>
+<div id="update-toast"></div>
+
+<header>
+    <div class="logo-wrap" onclick="checkUpdatesManual()" title="Toque para verificar atualizações">
+        <!-- photo-frame: contêiner que recorta o círculo e garante fundo sólido
+             atrás da foto. background-color direto na <img> com object-fit:cover
+             não pinta de forma confiável atrás de PNG/WebP com canal alfa em
+             algumas versões do WebView Android — colocar o fundo no <div> pai
+             com overflow:hidden resolve isso de forma garantida. -->
+        <div class="photo-frame">
+            <img id="logo-img"
+                 src="file:///android_asset/logo.png"
+                 onerror="this.onerror=null;this.src='https://i.ibb.co/ccC6BNw/ei-1699404424073-removebg-preview.png'"/>
+            <!-- Camada opaca reservada para a foto do usuário: fica por cima
+                 da <img>, isolada (isolation:isolate) do resto da UI, e é
+                 sempre pintada com fundo sólido antes da foto — nada abaixo
+                 dela (fundo animado, partículas) pode aparecer através. -->
+            <canvas id="logo-photo-canvas"></canvas>
+        </div>
+        <!-- foguete orbitante -->
+        <svg class="orbit-rocket" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" fill="none">
+            <path d="M9 1 C9 1 13 3 13 8 L11 10 L7 10 L5 8 C5 3 9 1 9 1Z" fill="#007BFF" stroke="#00cfff" stroke-width=".8"/>
+            <circle cx="9" cy="7" r="1.6" fill="#00cfff" opacity=".9"/>
+            <path d="M7 10 L6 13 L9 11.5 L12 13 L11 10Z" fill="#6F00FF" opacity=".85"/>
+            <path d="M5 8 L3 9.5 L5 10Z" fill="#f39c12" opacity=".8"/>
+            <path d="M13 8 L15 9.5 L13 10Z" fill="#f39c12" opacity=".8"/>
+        </svg>
+    </div>
+</header>
+
+<main>
+    <!-- HOME -->
+    <section id="home" class="active">
+        <div class="info-container">
+            <div class="info-box breeze-card">
+                <span class="info-label">CONECTADO</span>
+                <span class="info-value" id="timer-display">--:--:--</span>
+                <span class="carrier-value" id="carrier-display">--</span>
+            </div>
+            <div class="info-box breeze-card" onclick="requestPing()" style="cursor:pointer">
+                <span class="info-label">IP LOCAL / PING</span>
+                <span class="info-value" id="ip-display" style="font-size:.7rem;display:block;line-height:1.4">--</span>
+                <span class="info-value" id="ping-display" style="font-size:.82rem">-- ms</span>
+            </div>
+        </div>
+
+        <div id="user-info-card">
+            <div class="cu-header">
+                <span class="cu-title">👤 CONTA SSH</span>
+                <button class="cu-refresh-btn" id="cu-refresh-btn" onclick="refreshCheckUser()" title="Atualizar">
+                    <span>↻</span>
+                </button>
+            </div>
+            <div class="cu-loading" id="cu-loading">
+                <div class="cu-spin"></div>
+                <span>CONSULTANDO SERVIDOR...</span>
+            </div>
+            <div class="cu-grid" id="cu-grid" style="display:none">
+                <div class="cu-item"><span class="cu-item-label">Usuário</span><span class="cu-item-value" id="cu-username">--</span></div>
+                <div class="cu-item"><span class="cu-item-label">Validade</span><span class="cu-item-value" id="cu-expiry">--</span></div>
+                <div class="cu-item"><span class="cu-item-label">Dias restantes</span><span class="cu-item-value" id="cu-days">--</span></div>
+                <div class="cu-item"><span class="cu-item-label">Conexões</span><span class="cu-item-value" id="cu-conns">--</span></div>
+            </div>
+            <div class="cu-error" id="cu-error" style="display:none"></div>
+        </div>
+
+        <button class="operator-btn" id="operator-btn" onclick="openOperatorModal()">
+            <div class="operator-circle">
+                <img id="op-circle-img"
+                     src="file:///android_asset/operadora.png"
+                     onerror="this.onerror=null;this.src='https://i.ibb.co/gLrmNT8G/imagem-2026-03-27-111301414-removebg-preview.png'"/>
+            </div>
+            <span class="operator-name" id="op-selected-label">SELECIONAR</span>
+        </button>
+
+        <div style="text-align:center">
+            <button id="btn-connection">LIGAR</button>
+            <div id="status-label" class="status-text"></div>
+        </div>
+
+        <div id="uuid-section" style="width:100%">
+            <span class="info-label" style="text-align:center;width:100%;display:block;margin-bottom:5px">CHAVE DE ACESSO (UUID)</span>
+            <div class="breeze-card" style="padding:14px">
+                <input type="text" class="uuid-box" id="user-uuid" placeholder="Cole sua CHAVE aqui">
+            </div>
+            <span class="app-version">NETSIMON v2.0</span>
+        </div>
+    </section>
+
+    <!-- CONFIG -->
+    <section id="config-screen">
+        <h3 style="margin-top:10px;font-size:.95rem;letter-spacing:1px">CONFIGURAÇÕES AVANÇADAS</h3>
+        <div class="config-area">
+            <div>
+                <div class="field-label">Config JSON ou VLESS personalizado (opcional)</div>
+                <textarea id="config-input" placeholder="Deixe vazio para usar a config padrão do sistema."></textarea>
+            </div>
+            <div>
+                <div class="field-label">Link do GIF / imagem / vídeo de fundo (opcional)</div>
+                <input type="url" class="gif-field" id="gif-url-input" placeholder="https://exemplo.com/fundo.gif">
+            </div>
+            <button class="btn-save" onclick="saveConfig()">SALVAR E VOLTAR</button>
+            <button class="btn-cancel" onclick="handleAndroidBack()">CANCELAR</button>
+        </div>
+    </section>
+</main>
+
+<!-- Botões fixos -->
+<button id="log-btn" onclick="openLogModal()" title="Log de conexão">📋</button>
+
+<button id="speedtest-btn" onclick="if(window.Android&&Android.openUrl){Android.openUrl('https://fast.com/pt/')}else{window.open('https://fast.com/pt/','_blank')}" title="Teste de velocidade">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none">
+        <!-- velocímetro -->
+        <path d="M12 12 L12 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M5.6 18a8 8 0 1 1 12.8 0" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+        <path d="M12 12 L16 9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        <!-- marcas -->
+        <line x1="5.6" y1="12" x2="7" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="18.4" y1="12" x2="17" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+</button>
+
+<button id="qr-share-btn" onclick="toggleProxyShare()" title="Compartilhar VPN via proxy">
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none">
+        <path d="M5 12.55a11 11 0 0 1 14.08 0" stroke="#666" stroke-width="2" stroke-linecap="round"/>
+        <path d="M1.42 9a16 16 0 0 1 21.16 0" stroke="#666" stroke-width="2" stroke-linecap="round"/>
+        <path d="M8.53 16.11a6 6 0 0 1 6.95 0" stroke="#666" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="12" cy="20" r="1" fill="#666"/>
+        <g transform="translate(13.5, 13)">
+            <circle cx="4" cy="4" r="4.5" fill="#0a0a1e" stroke="#6F00FF" stroke-width="1"/>
+            <polyline points="4,6 4,2 6,4" fill="none" stroke="#a855f7" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <line x1="2" y1="4" x2="4" y2="2" stroke="#a855f7" stroke-width="1.5" stroke-linecap="round"/>
+        </g>
+    </svg>
+</button>
+
+<!-- qr-receive-btn removido: instruções do receptor agora ficam dentro do
+     popup do botão de enviar (toggleProxyShare). apk-share-btn removido:
+     apps compartilhados não funcionam no aparelho de destino por causa da
+     assinatura ativa do Netsimon. -->
+
+<!-- ROUTING BTN DESATIVADO — substituído pelo botão de diagnóstico
+<button id="routing-btn" onclick="toggleRouting()" title="Compartilhamento de proxy">
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+         fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
+        <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
+        <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+        <line x1="12" y1="20" x2="12.01" y2="20"/>
+    </svg>
+</button>
+-->
+
+<!-- BOTÃO DE DIAGNÓSTICO DE CONEXÃO -->
+<button id="diag-btn" onclick="startDiagnosis()" title="Diagnóstico de conexão">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none">
+        <!-- antena -->
+        <line x1="12" y1="1" x2="12" y2="4" stroke="#666" stroke-width="1.5" stroke-linecap="round"/>
+        <circle cx="12" cy="1.5" r="1" fill="#666"/>
+        <!-- cabeça -->
+        <rect x="5" y="4" width="14" height="9" rx="2.5" fill="none" stroke="#666" stroke-width="1.5"/>
+        <!-- olhos -->
+        <circle cx="9" cy="8.5" r="1.5" fill="#666"/>
+        <circle cx="15" cy="8.5" r="1.5" fill="#666"/>
+        <!-- boca -->
+        <rect x="9.5" y="10.5" width="5" height="1.2" rx=".6" fill="#666"/>
+        <!-- corpo -->
+        <rect x="7" y="14" width="10" height="6" rx="1.5" fill="none" stroke="#666" stroke-width="1.5"/>
+        <!-- braços -->
+        <line x1="5" y1="15" x2="7" y2="15" stroke="#666" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="17" y1="15" x2="19" y2="15" stroke="#666" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+</button>
+
+<button id="watchdog-btn" onclick="toggleWatchdog()" title="Reconexão automática">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 100 100" fill="none">
+        <!-- nó central -->
+        <circle cx="50" cy="50" r="10" stroke="currentColor" stroke-width="6" fill="none"/>
+        <!-- nós externos -->
+        <circle cx="50" cy="10" r="5.5" stroke="currentColor" stroke-width="5" fill="none"/>
+        <circle cx="50" cy="90" r="5.5" stroke="currentColor" stroke-width="5" fill="none"/>
+        <circle cx="10" cy="50" r="5.5" stroke="currentColor" stroke-width="5" fill="none"/>
+        <circle cx="90" cy="50" r="5.5" stroke="currentColor" stroke-width="5" fill="none"/>
+        <circle cx="22" cy="22" r="5.5" stroke="currentColor" stroke-width="5" fill="none"/>
+        <circle cx="78" cy="22" r="5.5" stroke="currentColor" stroke-width="5" fill="none"/>
+        <circle cx="22" cy="78" r="5.5" stroke="currentColor" stroke-width="5" fill="none"/>
+        <circle cx="78" cy="78" r="5.5" stroke="currentColor" stroke-width="5" fill="none"/>
+        <!-- linhas -->
+        <line x1="50" y1="40" x2="50" y2="15.5" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+        <line x1="50" y1="60" x2="50" y2="84.5" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+        <line x1="40" y1="50" x2="15.5" y2="50" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+        <line x1="60" y1="50" x2="84.5" y2="50" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+        <line x1="43" y1="43" x2="26" y2="26" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+        <line x1="57" y1="43" x2="74" y2="26" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+        <line x1="43" y1="57" x2="26" y2="74" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+        <line x1="57" y1="57" x2="74" y2="74" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+    </svg>
+</button>
+
+<button id="ssh-cred-btn" onclick="openSshPopup(true)" title="Credenciais SSH">🔑</button>
+
+<button id="clear-storage-btn" onclick="openClearStoragePopup()" title="Limpar dados do app">
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+         fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="3 6 5 6 21 6"/>
+        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+        <path d="M10 11v6"/><path d="M14 11v6"/>
+        <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+    </svg>
+</button>
+
+<!-- Popup de confirmação — limpar todos os dados do app -->
+<div id="confirm-popup-overlay" onclick="if(event.target===this)closeClearStoragePopup()">
+    <div class="confirm-popup">
+        <div class="confirm-popup-icon">🗑️</div>
+        <h3>LIMPAR DADOS DO APP</h3>
+        <p class="confirm-popup-sub">Isso vai apagar TODAS as configurações salvas (chave de acesso, credenciais SSH, operadora selecionada, etc). É a mesma ação de "Limpar armazenamento" nas informações do app — o NetSimon vai fechar e abrir do zero, como recém-instalado.</p>
+        <button class="confirm-danger-btn" onclick="confirmClearStorage()">APAGAR TUDO E REINICIAR</button>
+        <button class="confirm-cancel-btn" onclick="closeClearStoragePopup()">CANCELAR</button>
+    </div>
+</div>
+
+<!-- Popup de compartilhamento (envio) -->
+<div id="qr-popup-overlay" onclick="handleQrOverlayClick(event)">
+    <div class="qr-popup">
+        <div class="qr-popup-icon" id="qr-popup-icon">📡</div>
+        <h3 id="qr-popup-title">COMPARTILHAR PROXY</h3>
+        <p class="qr-popup-sub" id="qr-popup-sub"></p>
+        <!-- Endereço principal — QR code removido, não é mais necessário -->
+        <div id="qr-canvas-wrap"></div>
+        <!-- Lista de IPs — preenchida dinamicamente -->
+        <div id="qr-ip-list-wrap"></div>
+        <div id="qr-addr-label">--</div>
+        <div id="qr-status-msg"></div>
+        <div id="qr-popup-actions"></div>
+    </div>
+</div>
+
+<!-- Popup de roteamento -->
+<div id="routing-popup-overlay" onclick="handleRoutingOverlayClick(event)">
+    <div class="routing-popup">
+        <div class="routing-popup-icon">📡</div>
+        <h3>COMPARTILHAMENTO DE PROXY</h3>
+        <p class="routing-popup-sub">Configure outros dispositivos na mesma rede para usar esta conexão como proxy HTTP.</p>
+        <div class="routing-info-box">
+            <span class="routing-info-label">Endereço do Proxy</span>
+            <span class="routing-info-value" id="routing-proxy-addr">--</span>
+            <span class="routing-info-hint">
+                Configure em: Configurações Wi-Fi → Proxy manual<br>
+                Host: <span id="routing-proxy-ip">--</span> &nbsp;|&nbsp; Porta: <span id="routing-proxy-port">--</span>
+            </span>
+        </div>
+        <button class="routing-copy-btn" onclick="copyProxyAddress()">📋 COPIAR ENDEREÇO</button>
+        <button class="routing-close-btn" onclick="closeRoutingPopup()">FECHAR</button>
+    </div>
+</div>
+
+<!-- Modal operadoras -->
+<div id="operator-modal" class="bottom-modal" onclick="handleModalBackdrop(event)">
+    <div class="modal-sheet">
+        <div class="modal-handle"></div>
+        <div class="modal-title">Selecione sua operadora</div>
+        <div class="cat-tabs" id="cat-tabs"></div>
+        <div class="op-list" id="op-list">
+            <div style="text-align:center;padding:24px;color:#333;font-size:.8rem">Carregando...</div>
+        </div>
+        <button class="modal-close-btn" onclick="closeOperatorModal()">FECHAR</button>
+    </div>
+</div>
+
+<!-- Popup SSH -->
+<div id="ssh-popup-overlay" onclick="handleSshOverlayClick(event)">
+    <div class="ssh-popup">
+        <div class="ssh-popup-icon">🔐</div>
+        <h3 id="ssh-popup-title">ACESSO SSH</h3>
+        <p class="ssh-popup-sub" id="ssh-popup-sub">Insira suas credenciais para conectar via SSH.<br>Elas serão salvas para uso futuro.</p>
+        <div class="ssh-saved-info" id="ssh-saved-badge" style="display:none"><span>✓</span><span>Credenciais salvas</span></div>
+        <div class="ssh-error-msg" id="ssh-error-msg">Usuário e senha são obrigatórios.</div>
+        <div class="ssh-field-group">
+            <div>
+                <span class="ssh-field-label">Usuário SSH</span>
+                <input type="text" class="ssh-field" id="ssh-username" placeholder="ex: netsimon"
+                       autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+            </div>
+            <div class="ssh-field-wrap">
+                <span class="ssh-field-label">Senha SSH</span>
+                <input type="password" class="ssh-field" id="ssh-password" placeholder="••••••••"
+                       autocomplete="current-password"/>
+                <button class="pwd-toggle" onclick="togglePwd()" id="pwd-toggle-btn" type="button">👁</button>
+            </div>
+        </div>
+        <div class="ssh-popup-btns">
+            <button class="ssh-btn-cancel" id="ssh-cancel-btn" onclick="cancelSshPopup()">CANCELAR</button>
+            <button class="ssh-btn-confirm" onclick="confirmSshCredentials()">SALVAR E CONECTAR</button>
+        </div>
+    </div>
+</div>
+
+<!-- LOG MODAL -->
+<div id="log-modal">
+    <div class="log-header">
+        <div class="log-title-wrap">
+            <span class="log-title">Log de Conexão</span>
+            <span class="log-subtitle">Netsimon · Status</span>
+        </div>
+        <div class="log-header-btns">
+            <button class="log-hbtn" onclick="copyAppLog()">Copiar</button>
+            <button class="log-hbtn danger" onclick="clearAppLog()">Limpar</button>
+            <button id="log-close-btn" onclick="closeLogModal()">✕</button>
+        </div>
+    </div>
+    <div class="log-status-bar">
+        <div class="log-live-dot active" id="al-live-dot"></div>
+        <span style="font-size:.58rem;color:#1a4060;letter-spacing:1px">AO VIVO</span>
+        <span class="log-count" id="al-count">0 eventos</span>
+    </div>
+    <div id="log-content"></div>
+</div>
+
+<script>
+    // =============================================================================
+    // NEON CANVAS
+    // =============================================================================
+    (function() {
+        var canvas = document.getElementById('neon-canvas');
+        var ctx = canvas.getContext('2d');
+        var STAR_COLORS = ['255,255,255','210,231,255','255,241,209','226,212,255'];
+        var stars = [], NUM_STARS = 8;
+        var _rafId = null, _running = true, _suspended = false, _neonWatchdog = null;
+        // Limita a ~30 FPS — a animação não precisa de 60 FPS para parecer fluida
+        // e isso já reduz à metade o trabalho de GPU/CPU em qualquer aparelho.
+        var FRAME_INTERVAL = 33, _lastFrameTime = 0;
+        // DPR capado em 1.5 — telas de alta densidade (3x, 4x) faziam o canvas
+        // alocar texturas enormes sem ganho visual perceptível nesse tipo de efeito.
+        var DPR = Math.min(window.devicePixelRatio || 1, 1.5);
+        function resize() {
+            var w = window.innerWidth, h = window.innerHeight;
+            canvas.style.width = w + 'px';
+            canvas.style.height = h + 'px';
+            canvas.width = Math.round(w * DPR);
+            canvas.height = Math.round(h * DPR);
+            ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+        }
+        // ── Estrela cadente ───────────────────────────────────────────────
+        // Cabeça pequena e brilhante + cauda longa e fina que esmaece em
+        // direção à origem do movimento.
+        function createStar() {
+            var w=window.innerWidth,h=window.innerHeight;
+            var angle=Math.random()*Math.PI*2,speed=2.3+Math.random()*2.2;
+            var color=STAR_COLORS[Math.floor(Math.random()*STAR_COLORS.length)];
+            var alpha=0.55+Math.random()*0.35;
+            var headRadius=0.9+Math.random()*1.1;     // cabeça pequena
+            var tailLen=70+Math.floor(Math.random()*70); // cauda longa (pontos guardados)
+            var side=Math.floor(Math.random()*4),extra=tailLen*speed,x,y;
+            if(side===0){x=Math.random()*w;y=-extra;}else if(side===1){x=w+extra;y=Math.random()*h;}else if(side===2){x=Math.random()*w;y=h+extra;}else{x=-extra;y=Math.random()*h;}
+            return{x:x,y:y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,color:color,alpha:alpha,headRadius:headRadius,tailLen:tailLen,age:0,maxAge:140+Math.random()*180,trail:[]};
+        }
+        function init(){stars=[];for(var i=0;i<NUM_STARS;i++){var s=createStar();s.age=Math.random()*s.maxAge;stars.push(s);}}
+        // ── Desenho sem shadowBlur ──────────────────────────────────────────
+        // ctx.shadowBlur força o Skia/WebView a alocar uma surface offscreen
+        // (textura EGL) a cada stroke. É a causa mais provável dos erros
+        // "BAD ALLOC from gles_texture_egl_image_get_2d_template" no logcat.
+        // Aqui o brilho da cauda vem de um gradiente linear (transparente →
+        // opaco) e o brilho da cabeça vem de um gradiente radial — ambos são
+        // apenas shaders, sem nenhuma alocação extra de GPU.
+        function drawStar(s, ca){
+            var trail=s.trail;
+            if(trail.length<2) return;
+            var first=trail[0], head=trail[trail.length-1];
+            var tailGrad=ctx.createLinearGradient(first.x,first.y,head.x,head.y);
+            tailGrad.addColorStop(0,'rgba('+s.color+',0)');
+            tailGrad.addColorStop(0.7,'rgba('+s.color+','+(ca*0.25).toFixed(2)+')');
+            tailGrad.addColorStop(1,'rgba('+s.color+','+ca.toFixed(2)+')');
+            ctx.beginPath();
+            ctx.moveTo(trail[0].x,trail[0].y);
+            for(var j=1;j<trail.length;j++) ctx.lineTo(trail[j].x,trail[j].y);
+            ctx.lineCap='round'; ctx.lineJoin='round';
+            ctx.strokeStyle=tailGrad;
+            ctx.lineWidth=Math.max(0.6,s.headRadius*0.55);
+            ctx.stroke();
+            // Halo suave da cabeça (gradiente radial, barato)
+            var haloR=s.headRadius*4.5;
+            var halo=ctx.createRadialGradient(head.x,head.y,0,head.x,head.y,haloR);
+            halo.addColorStop(0,'rgba('+s.color+','+(ca*0.9).toFixed(2)+')');
+            halo.addColorStop(0.45,'rgba('+s.color+','+(ca*0.28).toFixed(2)+')');
+            halo.addColorStop(1,'rgba('+s.color+',0)');
+            ctx.fillStyle=halo;
+            ctx.beginPath();ctx.arc(head.x,head.y,haloR,0,Math.PI*2);ctx.fill();
+            // Núcleo pequeno e nítido
+            ctx.fillStyle='rgba('+s.color+','+ca.toFixed(2)+')';
+            ctx.beginPath();ctx.arc(head.x,head.y,s.headRadius,0,Math.PI*2);ctx.fill();
+        }
+        function draw(ts){
+            if(!_running){_rafId=null;return;}
+            if(ts!==undefined && ts-_lastFrameTime<FRAME_INTERVAL){_rafId=requestAnimationFrame(draw);return;}
+            _lastFrameTime=ts||0;
+            ctx.clearRect(0,0,window.innerWidth,window.innerHeight);
+            for(var i=0;i<stars.length;i++){
+                var s=stars[i];s.x+=s.vx;s.y+=s.vy;s.age++;
+                s.trail.push({x:s.x,y:s.y});if(s.trail.length>s.tailLen)s.trail.shift();
+                var lr=s.age/s.maxAge,ff=lr<0.15?lr/0.15:lr>0.75?1-(lr-0.75)/0.25:1,ca=s.alpha*ff;
+                drawStar(s,ca);
+                var margin=s.tailLen*(Math.abs(s.vx)+Math.abs(s.vy));
+                if(s.age>=s.maxAge||s.x<-margin||s.x>window.innerWidth+margin||s.y<-margin||s.y>window.innerHeight+margin)stars[i]=createStar();
+            }
+            _rafId=requestAnimationFrame(draw);
+        }
+        function pauseCanvas(){_running=false;if(_rafId!==null){cancelAnimationFrame(_rafId);_rafId=null;}}
+        function resumeCanvas(){if(_suspended)return;if(!_running){_running=true;_rafId=requestAnimationFrame(draw);}}
+        document.addEventListener('visibilitychange',function(){if(document.hidden)pauseCanvas();else resumeCanvas();});
+        window.onWebViewPause=pauseCanvas;
+        window.onWebViewResume=resumeCanvas;
+        // ── Suspensão durante o handshake de conexão ─────────────────────
+        // Chamado pelo próprio app (veja BOTÃO LIGAR/PARAR e onTunnelState)
+        // para liberar 100% da GPU/CPU durante a criação da interface TUN e
+        // o startCoreLoop do Xray — exatamente a janela mais sensível a
+        // contenção de recursos do aparelho.
+        window.setNeonSuspended=function(suspended){
+            _suspended=!!suspended;
+            if(_neonWatchdog){clearTimeout(_neonWatchdog);_neonWatchdog=null;}
+            if(_suspended){
+                pauseCanvas();
+                // Rede de segurança: nunca fica suspenso por mais de 15s, mesmo
+                // se onTunnelState não for chamado por algum motivo inesperado.
+                _neonWatchdog=setTimeout(function(){window.setNeonSuspended(false);},15000);
+            } else {
+                resumeCanvas();
+            }
+        };
+        window.addEventListener('resize',resize);
+        resize();init();draw();
+    })();
+
+    // =============================================================================
+    // Storage
+    // =============================================================================
+    function storageSave(k,v){if(window.Android&&Android.storageSave)Android.storageSave(k,v);else try{localStorage.setItem(k,v);}catch(e){}}
+    function storageGet(k){if(window.Android&&Android.storageGet)return Android.storageGet(k);try{return localStorage.getItem(k);}catch(e){return null;}}
+
+    // =============================================================================
+    // Estado global
+    // =============================================================================
+    var isConnected=false, isSshConnecting=false;
+    var timerInterval=null, connectTime=null, pingFallbackTimer=null;
+    var uuidPattern=/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+    var allOperators=[], currentCategory=null, selectedOpName=null;
+    var sshPopupMode='connect', sshPendingOperator=null;
+    var routingActive=false, routingProxyAddr='';
+
+    // Estado proxy share (transmissor)
+    var proxyShareActive = false;
+    var proxyShareAddresses = [];
+    var proxySharePort = 5578;
+
+    // Estado receptor
+    // _receiveProxyActive removido junto com o botão de receber (ver
+    // instruções do app — só o botão de enviar compartilhamento existe agora)
+
+    // =============================================================================
+    // Back handler
+    // =============================================================================
+    window.handleAndroidBack = function() {
+        if(document.getElementById('log-modal').classList.contains('open')){closeLogModal();return;}
+        if(document.getElementById('qr-popup-overlay').classList.contains('open')){closeQrPopupSafe();return;}
+        if(document.getElementById('routing-popup-overlay').classList.contains('open')){closeRoutingPopup();return;}
+        if(document.getElementById('ssh-popup-overlay').classList.contains('open')){closeSshPopup();return;}
+        if(document.getElementById('operator-modal').classList.contains('open')){closeOperatorModal();return;}
+        var active=document.querySelector('section.active');
+        if(active&&active.id!=='home'){showPage('home');return;}
+    };
+
+    // =============================================================================
+    // Callback: botão PARAR da notificação de hotspot
+    // =============================================================================
+    window.onProxyShareStopped = function() {
+        proxyShareActive = false;
+        proxyShareAddresses = [];
+        document.getElementById('qr-share-btn').classList.remove('share-active');
+        if(document.getElementById('qr-popup-overlay').classList.contains('open')) {
+            closeQrPopupSafe();
+        }
+        showToast('📡 COMPARTILHAMENTO DESATIVADO', '#7f8c8d');
+    };
+
+    // =============================================================================
+    // OPERADORA DO APARELHO (SIM)
+    // =============================================================================
+    // Consulta a operadora via Android.getCarrierName() (TelephonyManager / APN
+    // do chip). Mostrada fixa, abaixo do contador "CONECTADO", assim que o app
+    // abre — independe de o túnel estar ligado.
+    function refreshCarrierDisplay() {
+        var el = document.getElementById('carrier-display');
+        if(!el) return;
+        if(!window.Android || !Android.getCarrierName) { el.textContent='--'; el.classList.remove('warn'); return; }
+        var name = '';
+        try { name = Android.getCarrierName() || ''; } catch(e) { name=''; }
+        if(name.trim()) {
+            el.textContent = name.trim().toUpperCase();
+            el.classList.remove('warn');
+        } else {
+            el.textContent = 'LIGUE OS DADOS MÓVEIS';
+            el.classList.add('warn');
+        }
+    }
+
+    // =============================================================================
+    // Init
+    // =============================================================================
+    window.addEventListener('load', function() {
+        var savedUuid = storageGet('netsmon_uuid');
+        if(savedUuid) document.getElementById('user-uuid').value = savedUuid;
+        var savedConfig = storageGet('netsmon_config');
+        if(savedConfig) document.getElementById('config-input').value = savedConfig;
+        var savedOp = storageGet('netsmon_operator');
+        if(savedOp) selectedOpName = savedOp;
+        updateSshCredBtn();
+        updateWatchdogBtn();
+        refreshCarrierDisplay();
+
+        var BG_DEFAULT = 'insira o link da imagem de fundo aqui';
+        var bgUrl = storageGet('netsmon_bg') || BG_DEFAULT;
+        if(document.getElementById('gif-url-input')) document.getElementById('gif-url-input').value = bgUrl;
+        applyBackgroundLocal();
+
+        if(window.Android && Android.getLocalIp) {
+            var localIp = Android.getLocalIp();
+            if(localIp) { document.getElementById('ip-display').textContent = localIp; document.getElementById('ping-display').textContent = 'local'; }
+        }
+
+        if(window.Android && Android.getOperators) {
+            try {
+                var json = Android.getOperators();
+                if(json && json !== '[]') { var ops=JSON.parse(json); if(ops.length>0) onOperatorsReady(ops, selectedOpName||ops[0].name); }
+            } catch(e) {}
+        }
+
+        syncRoutingState();
+
+if(window.Android && Android.isProxyShareRunning && Android.isProxyShareRunning()) {
+    proxyShareActive = true;
+    var _qrBtn = document.getElementById('qr-share-btn');
+    if(_qrBtn) _qrBtn.classList.add('share-active');
+}
+
+
+// NOVO BLOCO
+
+try {
+
+    if (
+        window.Android &&
+        Android.isRunning &&
+        Android.isRunning()
+    ) {
+
+        console.log("Tunnel ativo detectado. Atualizando UI.");
+
+        window.onTunnelState({
+            running:true,
+            error:null
+        });
+
+    }
+
+}catch(e){
+
+    console.log(e);
+
+}
+
+});
+
+    // =============================================================================
+    // ROTEAMENTO (botão routing-btn)
+    // =============================================================================
+    function syncRoutingState() {
+        if(!window.Android||!Android.isRoutingEnabled) return;
+        var enabled=Android.isRoutingEnabled();
+        var btn=document.getElementById('routing-btn');
+        if(!btn) return; // elemento ainda não existe no DOM
+        if(enabled){routingActive=true;btn.classList.add('active');}
+        else{routingActive=false;btn.classList.remove('active');}
+    }
+
+    // =============================================================================
+    // Reconexão automática (watchdog)
+    // =============================================================================
+    function updateWatchdogBtn() {
+        var btn = document.getElementById('watchdog-btn');
+        if(!btn) return;
+        var enabled = (window.Android && Android.isWatchdogEnabled) ? Android.isWatchdogEnabled() : false;
+        if (enabled) btn.classList.add('active'); else btn.classList.remove('active');
+    }
+    function toggleWatchdog() {
+        if (!window.Android || !Android.setWatchdogEnabled) { showToast('⚠ Função disponível apenas no app', '#e74c3c'); return; }
+        var current = Android.isWatchdogEnabled ? Android.isWatchdogEnabled() : false;
+        var next = !current;
+        Android.setWatchdogEnabled(next);
+        updateWatchdogBtn();
+        showToast(next ? '♻️ RECONEXÃO AUTOMÁTICA ATIVADA' : '♻️ RECONEXÃO AUTOMÁTICA DESATIVADA', next ? '#f39c12' : '#7f8c8d');
+    }
+    // Disparado pelo Android quando o watchdog detecta a conexão travada e reconecta sozinho
+    window.onAutoReconnect = function(nextHost, isClearing) {
+    var label = document.getElementById('status-label');
+    if (isClearing) {
+        // Watchdog confirmou reconexão bem-sucedida — limpa label e esconde toast
+        hideToast();
+        if (label) { label.textContent = ''; label.className = 'status-text'; }
+        return;
+    }
+    // Exibe mensagem de reconexão em andamento
+    var msg = nextHost
+        ? ('♻️ RECONECTANDO VIA ' + nextHost.toUpperCase() + '...')
+        : '♻️ CONEXÃO INSTÁVEL — RECONECTANDO...';
+    showToast(msg, '#f39c12', false);
+    if (label) {
+        label.textContent = nextHost
+            ? ('RECONECTANDO VIA ' + nextHost.toUpperCase() + '...')
+            : 'RECONECTANDO AUTOMATICAMENTE...';
+        label.className = 'status-text warn-text';
+    }
+    };
+
+    // =============================================================================
+    // Limpar armazenamento do app
+    // =============================================================================
+    function openClearStoragePopup() { document.getElementById('confirm-popup-overlay').classList.add('open'); }
+    function closeClearStoragePopup() { document.getElementById('confirm-popup-overlay').classList.remove('open'); }
+    function confirmClearStorage() {
+        closeClearStoragePopup();
+        if (!window.Android || !Android.clearAppStorage) { showToast('⚠ Função disponível apenas no app', '#e74c3c'); return; }
+        showToast('🗑️ Limpando dados...', '#e74c3c', false);
+        Android.clearAppStorage(); // o processo do app é finalizado pelo sistema em seguida
+    }
+
+    function toggleRouting() {
+        var btn=document.getElementById('routing-btn');
+        if(!routingActive) {
+            var addr='';
+            if(window.Android&&Android.enableRouting) addr=Android.enableRouting();
+            if(!addr||addr===':0') {
+                if(window.Android&&Android.getProxyShareAddresses) {
+                    try {
+                        var d=JSON.parse(Android.getProxyShareAddresses());
+                        if(d.addresses&&d.addresses.length>0) addr=d.addresses[0]+':'+d.port;
+                    } catch(e) {}
+                }
+            }
+            routingActive=true; routingProxyAddr=addr||'--';
+            btn.classList.add('active');
+            openRoutingPopup(routingProxyAddr);
+        } else {
+            if(window.Android&&Android.disableRouting) Android.disableRouting();
+            routingActive=false; routingProxyAddr='';
+            btn.classList.remove('active');
+            showToast('📡 ROTEAMENTO DESATIVADO','#7f8c8d');
+        }
+    }
+
+    function openRoutingPopup(proxyAddr) {
+        var parts=proxyAddr.split(':');
+        var ip=parts[0]||'--',port=parts[1]||'--';
+        document.getElementById('routing-proxy-addr').textContent=proxyAddr;
+        document.getElementById('routing-proxy-ip').textContent=ip;
+        document.getElementById('routing-proxy-port').textContent=port;
+        document.getElementById('routing-popup-overlay').classList.add('open');
+    }
+    function closeRoutingPopup(){document.getElementById('routing-popup-overlay').classList.remove('open');}
+    function handleRoutingOverlayClick(e){if(e.target===document.getElementById('routing-popup-overlay'))closeRoutingPopup();}
+    function copyProxyAddress() {
+        var addr=document.getElementById('routing-proxy-addr').textContent;
+        if(!addr||addr==='--') return;
+        _copyToClipboard(addr);
+        showToast('📋 ENDEREÇO COPIADO','#4a9eff');
+    }
+
+    // =============================================================================
+    // PROXY SHARE — transmissor
+    // =============================================================================
+    function toggleProxyShare() {
+        if(proxyShareActive) _stopProxyShare();
+        else _startProxyShare();
+    }
+
+    function _startProxyShare() {
+        if(!window.Android||!Android.startHotspotAndGetInfo) {
+            showToast('⚠ Função disponível apenas no app','#e74c3c'); return;
+        }
+
+        _qrSetState('⏳','INICIANDO...','Verificando hotspot e iniciando servidor...');
+        _qrSetActions('');
+        document.getElementById('qr-popup-overlay').classList.add('open');
+
+        setTimeout(function() {
+            var hotspotInfo = Android.startHotspotAndGetInfo();
+
+            if(hotspotInfo==='open_settings') {
+                _qrSetState('📶','LIGUE O HOTSPOT','As configurações foram abertas.\n1. Ative o Ponto de Acesso Wi-Fi\n2. Volte ao Netsimon e toque em "JÁ LIGUEI"');
+                document.getElementById('qr-canvas-wrap').style.background='#0a0a14';
+                document.getElementById('qr-canvas-wrap').innerHTML='<div style="font-size:3rem;padding:20px">⚙️</div>';
+                document.getElementById('qr-ip-list-wrap').innerHTML='';
+                _qrSetActions('<span class="qr-close-nodisable-btn" style="display:inline-block;cursor:pointer" onclick="checkHotspotAndStartShare()">✅ JÁ LIGUEI</span>');
+                return;
+            }
+
+            if(!hotspotInfo||hotspotInfo==='none'||hotspotInfo.startsWith('error')) {
+                _qrSetState('⚠️','HOTSPOT NÃO DETECTADO','Ative o Ponto de Acesso Wi-Fi nas configurações do sistema.');
+                document.getElementById('qr-ip-list-wrap').innerHTML='';
+                _qrSetActions('<span class="qr-close-nodisable-btn" style="display:inline-block;cursor:pointer" onclick="checkHotspotAndStartShare()">🔄 TENTAR NOVAMENTE</span>');
+                return;
+            }
+
+            _doStartShare();
+        }, 200);
+    }
+
+    window.checkHotspotAndStartShare = function() {
+        if(!window.Android||!Android.getHotspotInfo) return;
+        document.getElementById('qr-status-msg').textContent='Verificando...';
+        var info=Android.getHotspotInfo();
+        if(!info||info==='none') {
+            document.getElementById('qr-status-msg').innerHTML='<span style="color:#e74c3c">Hotspot ainda não detectado.</span>';
+            return;
+        }
+        _doStartShare();
+    };
+
+    function _doStartShare() {
+        if(!window.Android||!Android.startProxyShare) {
+            proxyShareActive=true;
+            document.getElementById('qr-share-btn').classList.add('share-active');
+            _qrShowShareActive([],5578,'NetSimon_Test');
+            return;
+        }
+
+        var result=Android.startProxyShare();
+        if(!result||result.startsWith('error')) {
+            _qrSetState('❌','ERRO','Não foi possível iniciar o servidor.\n'+(result||''));
+            document.getElementById('qr-ip-list-wrap').innerHTML='';
+            _qrSetActions('<button class="qr-close-btn" onclick="closeQrPopupSafe()">FECHAR</button>');
+            return;
+        }
+
+        // result = "ok|ssid|hotspotIp|port|allIpsJson"
+        var parts=result.split('|');
+        var ssid=parts[1]||'';
+        var port=parseInt(parts[3])||5578;
+        var allIps=[];
+        try { allIps=JSON.parse(parts[4]||'[]'); } catch(e) {}
+
+        proxyShareActive=true;
+        proxyShareAddresses=allIps;
+        proxySharePort=port;
+        document.getElementById('qr-share-btn').classList.add('share-active');
+        _qrShowShareActive(allIps, port, ssid);
+    }
+
+    // =============================================================================
+    // _qrShowShareActive
+    // Ordem: cabeçalho → endereço principal → lista de IPs → passo a passo →
+    // ações. A geração de QR code foi removida (não é mais necessária).
+    // =============================================================================
+    function _qrShowShareActive(allIps, port, ssid) {
+        document.getElementById('qr-popup-icon').textContent='📡';
+        document.getElementById('qr-popup-title').textContent='COMPARTILHAMENTO ATIVO';
+        document.getElementById('qr-popup-sub').textContent=
+            (ssid?'Rede: '+ssid+'\n':'')+'Porta: '+port+
+            '\n\nVeja abaixo o passo a passo para configurar o outro aparelho.';
+
+        // ── 1. Determina o melhor IP para exibir em destaque ─────────────
+        var bestIp = allIps.find(function(ip){return ip.startsWith('100.');})
+                  || allIps.find(function(ip){return ip.startsWith('192.168.43.');})
+                  || allIps[0] || '';
+
+        // ── 2. qr-canvas-wrap: sem QR — só o endereço principal em destaque ─
+        var wrap = document.getElementById('qr-canvas-wrap');
+        wrap.style.background = '#0a0a14';
+        wrap.style.borderRadius = '12px';
+        wrap.style.padding = '16px 12px';
+        wrap.style.minHeight = 'auto';
+
+        if (bestIp) {
+            wrap.innerHTML = '<div style="text-align:center">'
+                + '<div style="font-size:.65rem;color:#3a6090;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Endereço principal</div>'
+                + '<div style="font-family:monospace;font-size:1.05rem;color:#2ecc71;font-weight:700">'+bestIp+' : '+port+'</div>'
+                + '</div>';
+            document.getElementById('qr-addr-label').textContent = bestIp+':'+port;
+        } else {
+            wrap.innerHTML = '<div style="color:#555;font-size:.75rem;padding:20px;text-align:center">Nenhum IP detectado ainda.<br>Verifique se o hotspot está ativo.</div>';
+            document.getElementById('qr-addr-label').textContent = '--:'+port;
+        }
+
+        // ── 3. Lista de IPs em qr-ip-list-wrap (separada do bloco acima) ──
+        var ipListWrap = document.getElementById('qr-ip-list-wrap');
+        if(allIps.length > 0) {
+            var html = '<div class="ip-list-box">';
+            html += '<div class="ip-list-title">Endereços disponíveis</div>';
+            allIps.forEach(function(ip) {
+                var addr = ip+':'+port;
+                html += '<div class="ip-list-row">'
+                      + '<span class="ip-list-addr">'+addr+'</span>'
+                      + '<button class="ip-list-copy" onclick="_copyToClipboard(\''+addr+'\');showToast(\'📋 Copiado!\',\'#2ecc71\')">Copiar</button>'
+                      + '</div>';
+            });
+            html += '</div>';
+            ipListWrap.innerHTML = html;
+        } else {
+            ipListWrap.innerHTML = '';
+        }
+
+        // ── 3b. Passo a passo pro APARELHO QUE VAI RECEBER a internet ────
+        // (antes isso só aparecia no botão de RECEBER, que foi removido —
+        // agora quem compartilha já sai daqui sabendo o que orientar)
+        var recvSteps = [
+            {n:'1', icon:'📱', title:'Conecte-se a esta rede', desc:(ssid?'Vá em Wi-Fi e conecte na rede "'+ssid+'".':'Vá em Wi-Fi e conecte na rede deste aparelho.')},
+            {n:'2', icon:'⚙', title:'Configure o proxy manual', desc:'Segure a rede → Modificar rede → Avançado → Proxy → Manual'},
+            {n:'3', icon:'📋', title:'Insira host e porta', desc:'Use um dos endereços da lista acima (host e porta).'},
+            {n:'4', icon:'✅', title:'Salvar', desc:'Pronto — a internet passa a sair por este aparelho.'}
+        ];
+        var recvHtml = '<div class="ip-list-box" style="margin-top:10px"><div class="ip-list-title">Passo a passo no aparelho que vai receber</div>'
+            + '<div style="display:flex;flex-direction:column;gap:9px;padding:2px 2px 4px">';
+        recvSteps.forEach(function(s){
+            recvHtml += '<div style="display:flex;align-items:flex-start;gap:9px">'
+                +'<div style="width:22px;height:22px;border-radius:50%;background:rgba(46,204,113,.18);border:1px solid rgba(46,204,113,.4);display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:900;color:#2ecc71;flex-shrink:0">'+s.n+'</div>'
+                +'<div style="flex:1"><div style="font-size:.72rem;font-weight:700;color:#e8e8f0">'+s.icon+' '+s.title+'</div>'
+                +'<div style="font-size:.62rem;color:#666;line-height:1.4">'+s.desc+'</div></div></div>';
+        });
+        recvHtml += '</div></div>';
+        ipListWrap.innerHTML += recvHtml;
+
+        // ── 4. Status e ações ─────────────────────────────────────────────
+        document.getElementById('qr-status-msg').innerHTML =
+            '<span style="color:#2ecc71;font-weight:700">🟢 Servidor ativo na porta '+port+'</span>';
+
+        _qrSetActions(
+            '<button class="qr-close-nodisable-btn" onclick="closeQrPopupSafe()">FECHAR (mantém ativo)</button>'
+            +'<button class="qr-stop-btn" onclick="stopProxyShareFromPopup()">⏹ PARAR COMPARTILHAMENTO</button>'
+        );
+    }
+
+    function stopProxyShareFromPopup() {
+        _stopProxyShare();
+        document.getElementById('qr-popup-overlay').classList.remove('open');
+    }
+
+    function _stopProxyShare() {
+        proxyShareActive=false;
+        proxyShareAddresses=[];
+        document.getElementById('qr-share-btn').classList.remove('share-active');
+        if(window.Android&&Android.stopProxyShare) Android.stopProxyShare();
+        showToast('📡 COMPARTILHAMENTO DESATIVADO','#7f8c8d');
+    }
+
+    function closeQrPopupSafe() {
+        document.getElementById('qr-popup-overlay').classList.remove('open');
+    }
+
+    function handleQrOverlayClick(e) {
+        if(e.target===document.getElementById('qr-popup-overlay')) closeQrPopupSafe();
+    }
+
+    window.onHotspotStopped=function() {
+        if(proxyShareActive) {
+            proxyShareActive=false;
+            proxyShareAddresses=[];
+            document.getElementById('qr-share-btn').classList.remove('share-active');
+            showToast('📡 Hotspot encerrado — compartilhamento parado','#7f8c8d');
+        }
+    };
+
+    // =============================================================================
+    // RECEBER PROXY — fluxo removido (só existe o botão de ENVIAR agora).
+    // As instruções que apareciam aqui para o receptor foram incorporadas ao
+    // popup do botão de enviar (_qrShowShareActive), então quem está
+    // compartilhando pode repassar o passo a passo pro outro aparelho.
+    // =============================================================================
+
+    // =============================================================================
+    // _copyToClipboard
+    // =============================================================================
+    function _copyToClipboard(text) {
+        if(window.Android&&Android.copyToClipboard){Android.copyToClipboard(text);return;}
+        try {
+            if(navigator.clipboard&&window.isSecureContext) { navigator.clipboard.writeText(text).catch(function(){_copyFallback(text);}); }
+            else _copyFallback(text);
+        } catch(e){_copyFallback(text);}
+    }
+    function _copyFallback(text) {
+        var el=document.createElement('textarea');el.value=text;el.style.position='fixed';el.style.opacity='0';
+        document.body.appendChild(el);el.focus();el.select();try{document.execCommand('copy');}catch(e){}document.body.removeChild(el);
+    }
+
+    // =============================================================================
+// onTunnelState
+// =============================================================================
+window.onTunnelState = function(state) {
+    // Durante a varredura silenciosa do LIGAR (ver AUTO-CONNECT abaixo) o app
+    // liga/desliga o túnel várias vezes internamente para testar cada opção.
+    // Esses estados intermediários não devem "vazar" pra UI (o botão/label
+    // ficariam piscando LIGAR/PARAR). window.onTunnelState só volta a valer
+    // quando a varredura termina (sucesso real ou todas as opções esgotadas).
+    //
+    // CORREÇÃO: antes, esse "return" descartava também o MOTIVO real de cada
+    // falha nativa (ex.: "ssh_auth_failed" quando a senha está errada) — por
+    // isso, ao esgotar todas as opções, o app só sabia mostrar o popup
+    // genérico "SEM CONEXÃO", mesmo quando o problema real era credencial
+    // inválida. Agora guardamos o último erro em _autoConnLastError antes de
+    // sair, pra _autoTryOption poder usar esse motivo real no resultado final.
+    if (window._autoConnScanning) {
+        if (!state.running && state.error) window._autoConnLastError = state.error;
+        return;
+    }
+    var btn = document.getElementById('btn-connection'), sl = document.getElementById('status-label');
+    if (window.setNeonSuspended) window.setNeonSuspended(false);
+    if (state.running) {
+        isConnected = true; isSshConnecting = false;
+        window._expiredPopupShown = false;
+        btn.classList.add('active'); btn.classList.remove('connecting');
+        btn.disabled = false; btn.innerText = 'PARAR';
+        sl.innerText = 'CONECTADO'; sl.className = 'status-text connected';
+        hideToast();
+        startTimer(); // ← agora retoma do localStorage se já estava conectado
+        pingFallbackTimer = setTimeout(function() {
+            if (document.getElementById('ping-display').textContent === 'aguarde...')
+                document.getElementById('ping-display').textContent = '--';
+        }, 6000);
+    } else {
+        isConnected = false; isSshConnecting = false;
+        window._activeExpiryMs = null; // desliga o watchdog de expiração — nada a monitorar sem túnel ativo
+        btn.classList.remove('active', 'connecting');
+        btn.disabled = false; btn.innerText = 'LIGAR';
+        hideToast();
+        stopTimer(); // ← agora também limpa o localStorage
+        document.getElementById('ping-display').textContent = '-- ms';
+        document.getElementById('ip-display').textContent = '--';
+
+
+        if (state.error) {
+            var msg = state.error;
+            if (msg === 'ssh_auth_failed')          msg = 'CREDENCIAIS INVÁLIDAS';
+            else if (msg === 'ssh_payload_error')   msg = 'PAYLOAD / CDN FALHOU';
+            else if (msg.startsWith('ssh_error:'))  msg = 'ERRO: ' + msg.replace('ssh_error:', '');
+            else if (msg === 'permission_denied')   msg = 'PERMISSÃO NEGADA';
+            else if (msg === 'import_failed')       msg = 'ERRO AO IMPORTAR CONFIG';
+            else if (msg === 'no_operator_selected') msg = 'SELECIONE UMA OPERADORA';
+            else if (msg === 'xray_start_failed')   msg = 'XRAY FALHOU AO INICIAR';
+            sl.innerText = msg; sl.className = 'status-text error-text';
+            if (msg === 'CREDENCIAIS INVÁLIDAS') {
+                var op = allOperators.find(function(o) { return o.name === selectedOpName; });
+                var isSsh = op && (op.mode === 'SSH_DIRECT' || op.mode === 'SSL_PROXY');
+                if (isSsh) openSshPopup(false, null, selectedOpName);
+            }
+        } else {
+            sl.innerText = ''; sl.className = 'status-text';
+        }
+    }
+};
+
+    // =============================================================================
+    // QR POPUP helpers
+    // =============================================================================
+    function _qrSetState(icon,title,sub) {
+        document.getElementById('qr-popup-icon').textContent=icon;
+        document.getElementById('qr-popup-title').textContent=title;
+        document.getElementById('qr-popup-sub').textContent=sub;
+        document.getElementById('qr-addr-label').textContent='';
+        document.getElementById('qr-status-msg').textContent='';
+        // Estado neutro (sem QR — só um espaço reservado até o endereço ficar pronto)
+        var wrap=document.getElementById('qr-canvas-wrap');
+        wrap.style.background='#0a0a14';
+        wrap.style.minHeight='60px';
+        wrap.style.padding='12px';
+        wrap.innerHTML='';
+        // Limpa lista de IPs
+        document.getElementById('qr-ip-list-wrap').innerHTML='';
+    }
+    function _qrSetActions(html){document.getElementById('qr-popup-actions').innerHTML=html;}
+
+    // =============================================================================
+    // Fundo
+    // =============================================================================
+    function applyBackgroundLocal() {
+        var bg=document.getElementById('bg-layer');
+        var cached=storageGet('netsmon_bg_cache');
+        if(cached&&cached.length>100){bg.style.backgroundImage="url('"+cached+"')";bg.classList.add('loaded');return;}
+        var localImg=new Image();
+        localImg.onload=function(){bg.style.backgroundImage="url('file:///android_asset/fundo.png')";bg.classList.add('loaded');};
+        localImg.src='file:///android_asset/fundo.png';
+    }
+    function applyBackgroundOnline(url) {
+        if(!url||!url.trim()) return;
+        url=url.trim();
+        var bg=document.getElementById('bg-layer');
+        var oldV=document.getElementById('bg-video');if(oldV)oldV.remove();
+        if(/\.(mp4|webm|ogg)(\?.*)?$/i.test(url)) {
+            bg.style.backgroundImage='none';bg.classList.remove('loaded');
+            var v=document.createElement('video');
+            v.id='bg-video';v.src=url;v.autoplay=true;v.loop=true;v.muted=true;v.playsInline=true;
+            v.style.cssText='position:fixed;inset:0;z-index:2;width:100%;height:100%;object-fit:cover;opacity:0;pointer-events:none;transition:opacity 0.8s';
+            document.body.insertBefore(v,document.body.firstChild);
+            v.oncanplay=function(){v.style.opacity='0.5';};
+        }
+    }
+    function applyBackground(url){var oldV=document.getElementById('bg-video');if(oldV)oldV.remove();if(!url||!url.trim()){applyBackgroundLocal();return;}applyBackgroundLocal();applyBackgroundOnline(url.trim());}
+
+    // =============================================================================
+    // IP local
+    // =============================================================================
+    window.onLocalIp=function(ip){if(ip){document.getElementById('ip-display').textContent=ip;if(!isConnected)document.getElementById('ping-display').textContent='local';}};
+
+    // =============================================================================
+    // SSH
+    // =============================================================================
+    function hasSshCreds(){var u=storageGet('ssh_username'),p=storageGet('ssh_password');return !!(u&&u.trim()&&p&&p.trim());}
+    function updateSshCredBtn(){var b=document.getElementById('ssh-cred-btn');if(hasSshCreds())b.classList.add('has-creds');else b.classList.remove('has-creds');}
+    function openSshPopup(editMode,uuid,opName){
+        sshPopupMode=editMode?'edit':'connect';sshPendingOperator=opName||null;
+        var su=storageGet('ssh_username')||'',sp=storageGet('ssh_password')||'';
+        document.getElementById('ssh-username').value=su;document.getElementById('ssh-password').value=sp;
+        if(editMode){document.getElementById('ssh-popup-title').textContent='CREDENCIAIS SSH';document.getElementById('ssh-popup-sub').textContent='Edite suas credenciais de acesso SSH.';document.getElementById('ssh-cancel-btn').textContent='FECHAR';document.querySelector('.ssh-btn-confirm').textContent='SALVAR';}
+        else{document.getElementById('ssh-popup-title').textContent='ACESSO SSH NECESSÁRIO';document.getElementById('ssh-popup-sub').textContent='Insira suas credenciais para conectar via SSH.\nSerão salvas para uso futuro.';document.getElementById('ssh-cancel-btn').textContent='CANCELAR';document.querySelector('.ssh-btn-confirm').textContent='SALVAR E CONECTAR';}
+        document.getElementById('ssh-saved-badge').style.display=hasSshCreds()?'flex':'none';
+        document.getElementById('ssh-error-msg').classList.remove('show');
+        document.getElementById('ssh-popup-overlay').classList.add('open');
+        setTimeout(function(){if(!su)document.getElementById('ssh-username').focus();else if(!sp)document.getElementById('ssh-password').focus();},300);
+    }
+    function closeSshPopup(){document.getElementById('ssh-popup-overlay').classList.remove('open');document.getElementById('ssh-password').type='password';document.getElementById('pwd-toggle-btn').textContent='👁';}
+    function cancelSshPopup(){closeSshPopup();}
+    function togglePwd(){var f=document.getElementById('ssh-password'),b=document.getElementById('pwd-toggle-btn');if(f.type==='password'){f.type='text';b.textContent='🙈';}else{f.type='password';b.textContent='👁';}}
+    function handleSshOverlayClick(e){if(e.target===document.getElementById('ssh-popup-overlay'))closeSshPopup();}
+    // confirmSshCredentials: definida mais abaixo (perto do botão LIGAR/PARAR),
+    // já corrigida para não perder a operadora pendente numa condição de corrida
+    // com o device check assíncrono. Ver comentário na definição real.
+
+    // =============================================================================
+    // CheckUser
+    // =============================================================================
+    var cuRefreshCooldown=false;
+    window.onCheckUserLoading=function(){var card=document.getElementById('user-info-card');card.classList.add('show');document.getElementById('cu-loading').style.display='flex';document.getElementById('cu-grid').style.display='none';document.getElementById('cu-error').style.display='none';document.getElementById('cu-refresh-btn').classList.add('spinning');};
+    // ── Logo swap: substitui logo pela foto do cliente com transição suave ──
+    var _logoOrigSrc='file:///android_asset/logo.png';
+    var _pendingPhotoUrl=null;
+    var _photoRetryCount=0;
+    var _photoRetryTimer=null;
+
+    // ── Correção definitiva de transparência: a foto do usuário passa a ser
+    //    pintada num <canvas> que fica no topo da pilha de camadas daquele
+    //    "quadrante" (photo-frame), isolado (isolation:isolate) do resto da
+    //    UI. O canvas recebe um preenchimento 100% opaco ANTES de desenhar a
+    //    foto por cima — como é pintura de pixels (drawImage), não leitura
+    //    (getImageData/toDataURL), não depende de CORS do servidor da foto.
+    //    Isso resolve o vazamento visual do fundo animado (#neon-canvas /
+    //    #bg-layer) por trás da foto, que é o bug real — o canvas passa a
+    //    ser a camada mais alta daquele quadrante, e nada abaixo dele pode
+    //    aparecer através. ──
+    function _paintPhotoCanvas(imgEl){
+        var canvas=document.getElementById('logo-photo-canvas');
+        if(!canvas)return;
+        var dpr=window.devicePixelRatio||1;
+        var size=90;
+        canvas.width=size*dpr;
+        canvas.height=size*dpr;
+        var ctx=canvas.getContext('2d');
+        ctx.setTransform(dpr,0,0,dpr,0,0);
+        ctx.clearRect(0,0,size,size);
+        // fundo 100% opaco — nenhuma transparência sobrevive a partir daqui
+        ctx.fillStyle='#000';
+        ctx.fillRect(0,0,size,size);
+        // reproduz manualmente o object-fit:cover que a <img> usava
+        var iw=imgEl.naturalWidth||size, ih=imgEl.naturalHeight||size;
+        var scale=Math.max(size/iw, size/ih);
+        var dw=iw*scale, dh=ih*scale;
+        var dx=(size-dw)/2, dy=(size-dh)/2;
+        try{
+            ctx.drawImage(imgEl,dx,dy,dw,dh);
+            canvas.classList.add('active');
+        }catch(e){
+            // se por algum motivo o drawImage falhar, mantém a <img> visível
+            // (fallback antigo com fundo preto no .photo-frame) em vez de
+            // deixar o quadrante vazio
+            console.log('[NETSIMON] paintPhotoCanvas falhou: '+e);
+            canvas.classList.remove('active');
+        }
+    }
+    function applyUserPhoto(photoUrl){
+        console.log('[NETSIMON] applyUserPhoto chamado: '+photoUrl);
+        var img=document.getElementById('logo-img');if(!img){console.log('[NETSIMON] logo-img nao encontrado');return;}
+        if(!photoUrl||!photoUrl.startsWith('http')){console.log('[NETSIMON] URL invalida: '+photoUrl);return;}
+        _pendingPhotoUrl=photoUrl;
+        _photoRetryCount=0;
+        _tryLoadPhoto();
+    }
+    function _tryLoadPhoto(){
+        var img=document.getElementById('logo-img');
+        if(!img||!_pendingPhotoUrl)return;
+        if(img.getAttribute('data-photo')===_pendingPhotoUrl&&img.complete&&img.naturalWidth>0){
+            // já carregada com sucesso
+            return;
+        }
+        img.style.opacity='0';
+        var url=_pendingPhotoUrl;
+        // força cache-bust no retry pra evitar imagem corrompida em cache
+        var loadUrl=(_photoRetryCount>0)?(url+(url.indexOf('?')>=0?'&':'?')+'_r='+_photoRetryCount):url;
+        setTimeout(function(){
+            if(_pendingPhotoUrl!==url)return; // foto mudou enquanto esperava
+            var tmp=new Image();
+            tmp.onload=function(){
+                console.log('[NETSIMON] foto carregada com sucesso: '+url);
+                _photoRetryCount=0;
+                var img2=document.getElementById('logo-img');if(!img2)return;
+                img2.src=url;
+                img2.classList.add('user-photo');
+                img2.setAttribute('data-photo',url);
+                img2.style.opacity='1';
+                var wrap2=document.querySelector('.logo-wrap');
+                if(wrap2)wrap2.classList.add('has-ring');
+                // pinta a foto no canvas opaco (camada mais alta do quadrante)
+                _paintPhotoCanvas(tmp);
+            };
+            tmp.onerror=function(){
+                console.log('[NETSIMON] foto FALHOU carregar (tentativa '+_photoRetryCount+'): '+loadUrl);
+                _photoRetryCount++;
+                if(_photoRetryCount<=4){
+                    // retry exponencial: 1s, 2s, 4s, 8s
+                    _photoRetryTimer=setTimeout(_tryLoadPhoto, Math.pow(2,_photoRetryCount-1)*1000);
+                } else {
+                    // desiste após 4 tentativas — mantém logo
+                    _pendingPhotoUrl=null;
+                    var img2=document.getElementById('logo-img');if(img2){img2.style.opacity='1';}
+                }
+            };
+            tmp.src=loadUrl;
+        },250);
+    }
+    function restoreLogo(){
+        _pendingPhotoUrl=null;
+        _photoRetryCount=0;
+        if(_photoRetryTimer){clearTimeout(_photoRetryTimer);_photoRetryTimer=null;}
+        var img=document.getElementById('logo-img');if(!img)return;
+        img.style.opacity='0';
+        var canvas0=document.getElementById('logo-photo-canvas');
+        if(canvas0)canvas0.classList.remove('active');
+        setTimeout(function(){
+            img.src=_logoOrigSrc;
+            img.classList.remove('user-photo');
+            img.removeAttribute('data-photo');
+            img.style.opacity='1';
+            var wrap3=document.querySelector('.logo-wrap');
+            if(wrap3)wrap3.classList.remove('has-ring');
+        },250);
+    }
+
+    window.onCheckUserResult=function(data){
+        // DEBUG TEMPORÁRIO — remover após confirmar foto_url chegando
+        try{var _d=JSON.stringify(data);console.log('[NETSIMON] onCheckUserResult: '+_d);}catch(e){}
+        var card=document.getElementById('user-info-card'),btn=document.getElementById('cu-refresh-btn');btn.classList.remove('spinning');
+        if(!data){card.classList.remove('show');restoreLogo();return;}
+        card.classList.add('show');document.getElementById('cu-loading').style.display='none';
+        if(data.error){document.getElementById('cu-grid').style.display='none';var errEl=document.getElementById('cu-error');errEl.style.display='block';errEl.textContent='⚠ '+data.error;return;}
+        document.getElementById('cu-error').style.display='none';document.getElementById('cu-grid').style.display='grid';
+        var userEl=document.getElementById('cu-username');userEl.textContent=data.username||'--';userEl.className='cu-item-value';
+        var expiryEl=document.getElementById('cu-expiry');expiryEl.textContent=data.expiryDate!=='?'?data.expiryDate:'--';expiryEl.className='cu-item-value';
+        _updateActiveExpiry(data.expiryDate);
+        var daysEl=document.getElementById('cu-days'),days=data.daysRemaining,expiredNow=_isExpiredNow(data.expiryDate);
+        if(expiredNow){daysEl.textContent='EXPIRADO';daysEl.className='cu-item-value bad';}
+        else if(days<0){daysEl.textContent='--';daysEl.className='cu-item-value';}
+        else if(days===0){daysEl.textContent='menos de 1 dia';daysEl.className='cu-item-value bad';}
+        else if(days<=3){daysEl.textContent=days+' dia'+(days===1?'':'s');daysEl.className='cu-item-value bad';}
+        else if(days<=9){daysEl.textContent=days+' dias';daysEl.className='cu-item-value warn';}
+        else{daysEl.textContent=days+' dias';daysEl.className='cu-item-value good';}
+        var connsEl=document.getElementById('cu-conns'),active=data.connectionsActive,limit=data.connectionsLimit;
+        if(active<0&&limit<0){connsEl.textContent='--';connsEl.className='cu-item-value';}
+        else{connsEl.textContent=(active>=0?active:'?')+' / '+(limit>=0?limit:'?');connsEl.className='cu-item-value'+(active>=0&&limit>=0&&active>=limit?' warn':' good');}
+        // Foto do cliente: aplica se presente, mantém logo se ausente
+        if(data.photoUrl)applyUserPhoto(data.photoUrl); else restoreLogo();
+    };
+    function refreshCheckUser(){if(cuRefreshCooldown)return;if(!window.Android||!Android.checkUserNow)return;cuRefreshCooldown=true;setTimeout(function(){cuRefreshCooldown=false;},5000);Android.checkUserNow();}
+    // Atualização leve (reconexão): atualiza só os campos sem recriar o bloco
+    window.onCheckUserUpdate=function(data){
+        if(!data)return;
+        // Se houver erro, cai no fluxo completo para exibir mensagem de erro corretamente
+        if(data.error){window.onCheckUserResult(data);return;}
+        // Atualiza só os campos dinâmicos sem mexer no card
+        var userEl=document.getElementById('cu-username');if(userEl){userEl.textContent=data.username||'--';userEl.className='cu-item-value';}
+        var expiryEl=document.getElementById('cu-expiry');if(expiryEl){expiryEl.textContent=data.expiryDate!=='?'?data.expiryDate:'--';expiryEl.className='cu-item-value';}
+        _updateActiveExpiry(data.expiryDate);
+        var daysEl=document.getElementById('cu-days'),days=data.daysRemaining,expiredNow=_isExpiredNow(data.expiryDate);
+        if(daysEl){
+            if(expiredNow){daysEl.textContent='EXPIRADO';daysEl.className='cu-item-value bad';}
+            else if(days<0){daysEl.textContent='--';daysEl.className='cu-item-value';}
+            else if(days===0){daysEl.textContent='menos de 1 dia';daysEl.className='cu-item-value bad';}
+            else if(days<=3){daysEl.textContent=days+' dia'+(days===1?'':'s');daysEl.className='cu-item-value bad';}
+            else if(days<=9){daysEl.textContent=days+' dias';daysEl.className='cu-item-value warn';}
+            else{daysEl.textContent=days+' dias';daysEl.className='cu-item-value good';}
+        }
+        var connsEl=document.getElementById('cu-conns'),active=data.connectionsActive,limit=data.connectionsLimit;
+        if(connsEl){
+            if(active<0&&limit<0){connsEl.textContent='--';connsEl.className='cu-item-value';}
+            else{connsEl.textContent=(active>=0?active:'?')+' / '+(limit>=0?limit:'?');connsEl.className='cu-item-value'+(active>=0&&limit>=0&&active>=limit?' warn':' good');}
+        }
+        // Foto: aplica/atualiza se presente
+        if(data.photoUrl)applyUserPhoto(data.photoUrl);
+    };
+
+    // =============================================================================
+    // TOAST
+    // =============================================================================
+    var toastTimer=null;
+    function showToast(msg,color,auto){
+        var t=document.getElementById('update-toast');t.textContent=msg;t.style.borderColor=color||'#2ecc71';t.style.color=color||'#2ecc71';t.classList.add('show');
+        if(toastTimer)clearTimeout(toastTimer);if(auto!==false)toastTimer=setTimeout(function(){t.classList.remove('show');},3500);
+    }
+    function hideToast(){
+        if(toastTimer){clearTimeout(toastTimer);toastTimer=null;}
+        document.getElementById('update-toast').classList.remove('show');
+    }
+
+    // =============================================================================
+    // Atualizações
+    // =============================================================================
+    window.onUpdateComplete=function(type){if(type==='webview'||type==='all')showToast('🔄 ATUALIZAÇÃO DISPONÍVEL','#4a9eff');else showToast('✓ CONFIG ATUALIZADA','#2ecc71');};
+    window.onUpdateAlreadyUpToDate=function(){showToast('✓ JÁ ATUALIZADO','#2ecc71');};
+    function checkUpdatesManual(){if(window.Android&&Android.checkUpdates)Android.checkUpdates();}
+
+    // =============================================================================
+    // Operadoras
+    // =============================================================================
+    function getModeBadgeClass(mode){switch((mode||'').toUpperCase()){case'SSH_DIRECT':return'badge-ssh';case'V2RAY':return'badge-v2ray';case'SSL_PROXY':return'badge-ssl';default:return'badge-other';}}
+    function getModeBadgeLabel(mode){switch((mode||'').toUpperCase()){case'SSH_DIRECT':return'SSH';case'V2RAY':return'V2RAY';case'SSL_PROXY':return'SSL';default:return mode||'?';}}
+
+    // =============================================================================
+    // DETECÇÃO AUTOMÁTICA DE OPERADORA (SIM/APN)
+    // =============================================================================
+    // Usa Android.getCarrierName() (TelephonyManager: simOperatorName / rede)
+    // pra descobrir a operadora do chip e pré-selecionar a categoria certa,
+    // evitando que o cliente tente conectar numa operadora incompatível com o
+    // chip dele. As outras categorias continuam acessíveis manualmente pela
+    // aba "Todos" no seletor de operadoras — nada é escondido, só o padrão
+    // muda. Só entra em ação se o cliente ainda não tiver escolhido uma
+    // operadora manualmente antes (nada de sobrescrever escolha salva).
+    function matchCarrierCategory(carrierName, ops) {
+        if (!carrierName) return null;
+        var norm = carrierName.toUpperCase();
+        var cats = [], seen = {};
+        ops.forEach(function (o) {
+            var c = o.category && o.category.name ? o.category.name : null;
+            if (c && !seen[c]) { seen[c] = true; cats.push(c); }
+        });
+        for (var i = 0; i < cats.length; i++) {
+            if (norm.indexOf(cats[i].toUpperCase()) !== -1) return cats[i];
+        }
+        return null;
+    }
+    function renderOperators(ops,selName){
+        var cats=[],seen={};ops.forEach(function(o){var c=o.category&&o.category.name?o.category.name:'Geral';if(!seen[c]){seen[c]=true;cats.push(c);}});
+        var tabsEl=document.getElementById('cat-tabs');tabsEl.innerHTML='';
+        if(cats.length>1){['Todos'].concat(cats).forEach(function(c){var t=document.createElement('button');t.className='cat-tab'+(currentCategory===c||(!currentCategory&&c==='Todos')?' active':'');t.textContent=c;t.onclick=function(){currentCategory=c==='Todos'?null:c;renderOps(ops,selName);updateCatTabs();};tabsEl.appendChild(t);});}
+        renderOps(ops,selName);
+    }
+    function updateCatTabs(){document.querySelectorAll('.cat-tab').forEach(function(t){t.classList.toggle('active',t.textContent===(currentCategory||'Todos'));});}
+    function renderOps(ops,selName){
+        var filtered=currentCategory?ops.filter(function(o){return(o.category&&o.category.name?o.category.name:'Geral')===currentCategory;}):ops;
+        var list=document.getElementById('op-list');list.innerHTML='';
+        if(!filtered.length){list.innerHTML='<div style="text-align:center;padding:24px;color:#333;font-size:.8rem">Nenhuma operadora encontrada</div>';return;}
+        filtered.forEach(function(op){
+            var div=document.createElement('div');div.className='op-item'+(op.name===selName?' selected':'');
+            var iconSrc=op.icon||'file:///android_asset/operadora.png';
+            div.innerHTML='<img class="op-icon" src="'+iconSrc+'" onerror="this.onerror=null;this.src=\'file:///android_asset/operadora.png\'"/>'+'<div class="op-info"><div class="op-name">'+op.name+'</div><div class="op-desc">'+(op.description||'')+'</div></div>'+'<span class="op-mode-badge '+getModeBadgeClass(op.mode)+'">'+getModeBadgeLabel(op.mode)+'</span>'+'<div class="op-check"></div>';
+            div.onclick=function(){selectOperatorUi(op.name,ops);};list.appendChild(div);
+        });
+    }
+    function selectOperatorUi(name,ops){
+        selectedOpName=name;storageSave('netsmon_operator',name);
+        if(window.Android&&Android.selectOperator)Android.selectOperator(name);
+        var op=ops.find(function(o){return o.name===name;});
+        if(op){document.getElementById('op-selected-label').textContent=op.name;var imgSrc=op.icon||'file:///android_asset/operadora.png';document.getElementById('op-circle-img').src=imgSrc;var isSsh=op.mode==='SSH_DIRECT'||op.mode==='SSL_PROXY';document.getElementById('uuid-section').classList.toggle('hidden',isSsh);}
+        renderOps(ops,name);setTimeout(closeOperatorModal,250);
+    }
+    window.onOperatorsReady=function(ops,defName){
+        allOperators=ops;
+        var savedOp=storageGet('netsmon_operator');
+        var nameToSel=savedOp||defName||(ops.length>0?ops[0].name:'');
+        if(nameToSel&&!ops.find(function(o){return o.name===nameToSel;}))nameToSel=ops.length>0?ops[0].name:'';
+
+        // Detecção automática de operadora: só quando o cliente ainda não
+        // escolheu manualmente uma antes (respeita escolha salva).
+        if(!savedOp){
+            var carrier=(window.Android&&Android.getCarrierName)?(Android.getCarrierName()||''):'';
+            var detectedCat=matchCarrierCategory(carrier,ops);
+            if(detectedCat){
+                currentCategory=detectedCat;
+                var opsInCat=ops.filter(function(o){return(o.category&&o.category.name?o.category.name:'Geral')===detectedCat;});
+                if(opsInCat.length>0)nameToSel=opsInCat[0].name;
+            }
+        }
+
+        selectedOpName=nameToSel;var op=ops.find(function(o){return o.name===nameToSel;});
+        if(op){document.getElementById('op-selected-label').textContent=op.name;var imgSrc=op.icon||'file:///android_asset/operadora.png';document.getElementById('op-circle-img').src=imgSrc;var isSsh=op.mode==='SSH_DIRECT'||op.mode==='SSL_PROXY';document.getElementById('uuid-section').classList.toggle('hidden',isSsh);}
+        renderOperators(ops,nameToSel);
+    };
+    function openOperatorModal(){document.getElementById('operator-modal').classList.add('open');renderOperators(allOperators,selectedOpName);}
+    function closeOperatorModal(){document.getElementById('operator-modal').classList.remove('open');}
+    function handleModalBackdrop(e){if(e.target===document.getElementById('operator-modal'))closeOperatorModal();}
+
+    // =============================================================================
+// PING / TIMER
+// =============================================================================
+window.onPingResult = function(ping, ip) {
+    clearTimeout(pingFallbackTimer);
+    if (ip) document.getElementById('ip-display').textContent = ip;
+    document.getElementById('ping-display').textContent = ping >= 0 ? ping + 'ms' : 'timeout';
+};
+
+function requestPing() {
+    if (!isConnected) return;
+    document.getElementById('ping-display').textContent = '...';
+    if (window.Android && Android.measurePingNow) Android.measurePingNow();
+}
+
+// =============================================================================
+// EXPIRAÇÃO EXATA (data + hora)
+// =============================================================================
+// CORREÇÃO: antes o app só considerava a DATA de validade (ignorando a
+// hora), o que causava dois problemas opostos: (1) o card "CONTA SSH"
+// mostrava "EXPIRADO" assim que o dia da validade começava, mesmo faltando
+// várias horas de acesso ainda válido; e (2) NADA detectava a expiração de
+// fato no meio do dia — o status "CONECTADO" continuava exibido
+// indefinidamente horas depois do horário exato de validade, porque nenhuma
+// rotina comparava a hora atual do aparelho com a hora exata de expiração
+// (só existia checagem no momento de conectar, nunca durante a sessão ativa).
+//
+// Agora guardamos o timestamp exato (ms) da validade em window._activeExpiryMs
+// sempre que chega um checkUser novo, e o timer de conexão (que já roda 1x
+// por segundo enquanto o túnel está ativo) compara Date.now() contra esse
+// timestamp a cada tick — detectando a expiração no segundo exato em que ela
+// ocorre, e disparando o mesmo tipo de bloqueio grande em tela que já existe
+// para dispositivo bloqueado (showDeviceBlocked), mas com mensagem de
+// expiração.
+window._activeExpiryMs = null;
+window._activeExpiryDateStr = null;
+window._expiredPopupShown = false;
+
+function _parseExpiryMs(expiryDateStr) {
+    if (!expiryDateStr || expiryDateStr === '?') return null;
+    var m = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/.exec(expiryDateStr);
+    if (!m) return null;
+    var ms = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]).getTime();
+    return isNaN(ms) ? null : ms;
+}
+
+function _isExpiredNow(expiryDateStr) {
+    var ms = _parseExpiryMs(expiryDateStr);
+    return ms !== null && Date.now() >= ms;
+}
+
+// Chamada sempre que um checkUser (completo ou leve) traz uma data de
+// validade — mantém o watchdog do timer sincronizado com o dado mais recente.
+function _updateActiveExpiry(expiryDateStr) {
+    var ms = _parseExpiryMs(expiryDateStr);
+    window._activeExpiryMs = ms;
+    window._activeExpiryDateStr = expiryDateStr;
+    if (ms !== null && Date.now() < ms) window._expiredPopupShown = false;
+}
+
+// Popup grande de bloqueio por expiração — mesmo padrão visual do
+// showDeviceBlocked() (bloqueio por limite de dispositivo), mas com
+// ícone/título/mensagem de validade vencida, e sem a linha de "limite de
+// dispositivos" que não se aplica aqui.
+function showAccessExpiredPopup(expiryDateStr) {
+    if (window._expiredPopupShown) return;
+    window._expiredPopupShown = true;
+
+    if (window.Android) Android.stopTunnel();
+
+    var old = document.getElementById('device-blocked-overlay');
+    if (old) old.remove();
+
+    var overlay = document.createElement('div');
+    overlay.id = 'device-blocked-overlay';
+    overlay.style.cssText = 'display:flex;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.88);z-index:99999;align-items:center;justify-content:center;';
+
+    overlay.innerHTML =
+        '<div style="background:#1a0000;border:2px solid #ff2222;border-radius:16px;padding:32px 24px;max-width:320px;width:90%;text-align:center;box-shadow:0 0 40px rgba(255,0,0,0.4);">' +
+    '<div style="font-size:48px;margin-bottom:12px;">⏰</div>' +
+    '<div style="color:#ff3333;font-size:20px;font-weight:bold;margin-bottom:12px;">ACESSO EXPIRADO</div>' +
+    '<div style="color:#ffaaaa;font-size:14px;line-height:1.5;margin-bottom:16px;">Sua validade venceu' + (expiryDateStr && expiryDateStr !== '?' ? (' em ' + expiryDateStr) : '') + '.</div>' +
+    '<div style="color:#aaa;font-size:12px;line-height:1.6;margin-bottom:20px;">Renove seu acesso para continuar usando:</div>' +
+    '<a href="https://wa.me/55" onclick="if(window.Android&&Android.openExternalUrl){event.preventDefault();Android.openExternalUrl(\'https://wa.me/55\');}"' +
+        ' style="display:flex;align-items:center;justify-content:center;gap:8px;background:#25D366;color:#fff;text-decoration:none;border-radius:8px;padding:12px 20px;font-size:14px;font-weight:bold;margin-bottom:12px;">' +
+        '<span style="font-size:20px;">💬</span> FALAR COM SUPORTE' +
+    '</a>' +
+    '<button onclick="document.getElementById(\'device-blocked-overlay\').remove()" ' +
+        'style="background:transparent;color:#888;border:1px solid #444;border-radius:8px;padding:10px 32px;font-size:13px;cursor:pointer;width:100%;">FECHAR</button>' +
+    '</div>';
+
+    document.body.appendChild(overlay);
+
+    var btn = document.getElementById('btn-connection');
+    var sl  = document.getElementById('status-label');
+    if (btn) { btn.innerText = 'LIGAR'; btn.disabled = false; btn.classList.remove('connecting', 'active'); }
+    if (sl)  { sl.innerText = 'BLOQUEADO'; sl.classList.add('error-text'); sl.classList.remove('connected', 'warn-text'); }
+    isConnected = false; isSshConnecting = false;
+    stopTimer();
+}
+
+function startTimer() {
+    var stored = localStorage.getItem('tunnelConnectTime');
+    if (stored) {
+        connectTime = parseInt(stored, 10);
+    } else {
+        connectTime = Date.now();
+        localStorage.setItem('tunnelConnectTime', connectTime);
+    }
+    clearInterval(timerInterval);
+    timerInterval = setInterval(function() {
+        // Watchdog de expiração exata — ver bloco de comentários acima.
+        // Roda antes de atualizar o cronômetro: se o horário exato de
+        // validade já passou, interrompe a exibição de "CONECTADO" e mostra
+        // o bloqueio, em vez de seguir contando o tempo normalmente.
+        if (window._activeExpiryMs !== null && Date.now() >= window._activeExpiryMs) {
+            showAccessExpiredPopup(window._activeExpiryDateStr);
+            return;
+        }
+        var e = Math.floor((Date.now() - connectTime) / 1000),
+            h = Math.floor(e / 3600),
+            m = Math.floor((e % 3600) / 60),
+            s = e % 60;
+        document.getElementById('timer-display').textContent =
+            (h < 10 ? '0' : '') + h + ':' +
+            (m < 10 ? '0' : '') + m + ':' +
+            (s < 10 ? '0' : '') + s;
+    }, 1000);
+}
+
+function stopTimer() {
+    clearInterval(timerInterval);
+    timerInterval = null;
+    localStorage.removeItem('tunnelConnectTime');
+    document.getElementById('timer-display').textContent = '--:--:--';
+}
+
+window.onSshStatus = function(msg) {
+    var sl = document.getElementById('status-label');
+    sl.innerText = msg;
+    sl.className = 'status-text warn-text';
+};
+
+window.requestSshCredentials = function(opName, authFailed) {
+    if (authFailed) {
+        document.getElementById('ssh-error-msg').textContent = 'Credenciais inválidas. Tente novamente.';
+        document.getElementById('ssh-error-msg').classList.add('show');
+    }
+    openSshPopup(false, null, opName);
+};
+
+// =============================================================================
+// DEVICE CHECK — adicionar estas funções antes do botão LIGAR/PARAR
+// =============================================================================
+
+function getDeviceIdentifier() {
+    if (window.Android && Android.getDeviceHash) {
+        return Android.getDeviceHash();
+    }
+    var stored = storageGet('_device_id');
+    if (!stored) {
+        stored = Math.random().toString(36).substring(2) + Date.now().toString(36);
+        storageSave('_device_id', stored);
+    }
+    return stored;
+}
+
+// Callback chamado pelo Kotlin após performDeviceCheck
+window._deviceCheckCallback = null;
+window._deviceCheckTimeout = null;
+window.onDeviceCheckResult = function(status, message, limit) {
+    var cb = window._deviceCheckCallback;
+    window._deviceCheckCallback = null;
+    if (window._deviceCheckTimeout) { clearTimeout(window._deviceCheckTimeout); window._deviceCheckTimeout = null; }
+
+    // BLOQUEIO sempre é exibido, mesmo que o callback já tenha se perdido
+    // (WebView recarregou, Activity recriada, clique duplo, etc). Antes disso
+    // o "if (!cb) return;" fazia o popup nunca aparecer nesses casos.
+    if (status === 'blocked') {
+        showDeviceBlocked(message || 'Acesso bloqueado.', limit || 1);
+        return;
+    }
+    if (!cb) return;
+    cb();
+};
+
+function checkDeviceAccess(username, onAllowed) {
+    var deviceHash = getDeviceIdentifier();
+    var phone = (window.Android && Android.getPhoneNumber) ? Android.getPhoneNumber() : '';
+
+    if (window.Android && Android.performDeviceCheck) {
+        // Usa o método nativo (OkHttp — sem restrição HTTP do WebView)
+        window._deviceCheckCallback = onAllowed;
+
+        // Timeout de segurança: se o nativo nunca responder (WebView
+        // recarregada, Activity recriada, etc), não deixa a UI travada
+        // em "VERIFICANDO..." para sempre.
+        if (window._deviceCheckTimeout) clearTimeout(window._deviceCheckTimeout);
+        window._deviceCheckTimeout = setTimeout(function () {
+            window._deviceCheckTimeout = null;
+            if (window._deviceCheckCallback) {
+                window._deviceCheckCallback = null;
+                showDeviceBlocked('Tempo esgotado ao verificar o dispositivo. Tente novamente.', 1);
+            }
+        }, 10000);
+
+        Android.performDeviceCheck(username, deviceHash, phone);
+    } else {
+        // Fallback para ambiente sem Android (testes no browser)
+        onAllowed();
+    }
+}
+
+// =============================================================
+// Substitui a função showDeviceBlocked no btn_connection_device_check.js
+// =============================================================
+
+function showDeviceBlocked(message, limit) {
+    // Remove popup anterior se existir
+    var old = document.getElementById('device-blocked-overlay');
+    if (old) old.remove();
+
+    var overlay = document.createElement('div');
+    overlay.id = 'device-blocked-overlay';
+    overlay.style.cssText = 'display:flex;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.88);z-index:99999;align-items:center;justify-content:center;';
+
+    overlay.innerHTML =
+        '<div style="background:#1a0000;border:2px solid #ff2222;border-radius:16px;padding:32px 24px;max-width:320px;width:90%;text-align:center;box-shadow:0 0 40px rgba(255,0,0,0.4);">' +
+    '<div style="font-size:48px;margin-bottom:12px;">🚫</div>' +
+    '<div style="color:#ff3333;font-size:20px;font-weight:bold;margin-bottom:12px;">ACESSO BLOQUEADO</div>' +
+    '<div style="color:#ffaaaa;font-size:14px;line-height:1.5;margin-bottom:8px;">' + (message || 'Este dispositivo não está autorizado.') + '</div>' +
+    '<div style="color:#ff6666;font-size:12px;margin-bottom:16px;">Limite de ' + (limit || 1) + ' dispositivo(s) por conta.</div>' +
+    '<div style="color:#aaa;font-size:12px;line-height:1.6;margin-bottom:20px;">' +
+        'Acredita que isso é um erro ou deseja contratar um novo acesso?<br>' +
+        'Entre em contato com o suporte:' +
+    '</div>' +
+    '<a href="https://wa.me/55" onclick="if(window.Android&&Android.openExternalUrl){event.preventDefault();Android.openExternalUrl(\'https://wa.me/55\');}"' +
+        ' style="display:flex;align-items:center;justify-content:center;gap:8px;background:#25D366;color:#fff;text-decoration:none;border-radius:8px;padding:12px 20px;font-size:14px;font-weight:bold;margin-bottom:12px;">' +
+        '<span style="font-size:20px;">💬</span> FALAR COM SUPORTE' +
+    '</a>' +
+    '<button onclick="document.getElementById(\'device-blocked-overlay\').remove()" ' +
+        'style="background:transparent;color:#888;border:1px solid #444;border-radius:8px;padding:10px 32px;font-size:13px;cursor:pointer;width:100%;">FECHAR</button>' +
+    '</div>';
+
+    document.body.appendChild(overlay);
+
+    // Resetar botão de conexão para estado inicial
+    var btn = document.getElementById('btn-connection');
+    var sl  = document.getElementById('status-label');
+    if (btn) { btn.innerText = 'LIGAR'; btn.disabled = false; btn.classList.remove('connecting','active'); }
+    if (sl)  { sl.innerText = 'BLOQUEADO'; sl.classList.add('error-text'); sl.classList.remove('connected','warn-text'); }
+    isSshConnecting = false;
+}
+
+// =============================================================================
+// resetConnectionBtn — devolve o botão LIGAR/PARAR e o status ao estado
+// inicial. (Antes era chamada mas nunca tinha sido definida nesse arquivo.)
+// =============================================================================
+function resetConnectionBtn() {
+    var btn = document.getElementById('btn-connection'), sl = document.getElementById('status-label');
+    if (btn) { btn.disabled = false; btn.innerText = 'LIGAR'; btn.classList.remove('connecting', 'active'); }
+    if (sl)  { sl.innerText = ''; sl.className = 'status-text'; }
+    isSshConnecting = false;
+}
+
+// =============================================================================
+// BOTÃO LIGAR / PARAR — substitui o bloco original completo
+// =============================================================================
+document.getElementById('btn-connection').onclick = function () {
+    var btn = document.getElementById('btn-connection'),
+        sl  = document.getElementById('status-label');
+
+    // CANCELAR conexão SSH em andamento (inclui a varredura automática)
+    if (isSshConnecting) {
+        abortAutoConnect();
+        if (window.Android) Android.stopTunnel();
+        resetConnectionBtn();
+        return;
+    }
+
+    if (btn.innerText === 'LIGAR') {
+        var op    = allOperators.find(function (o) { return o.name === selectedOpName; });
+        var isSsh = op && (op.mode === 'SSH_DIRECT' || op.mode === 'SSL_PROXY');
+
+        if (isSsh) {
+            // ── Fluxo SSH ──────────────────────────────────────────
+            if (!hasSshCreds()) { openSshPopup(false, null, selectedOpName); return; }
+
+            var sshUser = storageGet('ssh_username') || '';
+            var sshPass = storageGet('ssh_password') || '';
+
+            // Prepara UI de "verificando" antes do device check
+            isSshConnecting = true;
+            btn.classList.add('connecting'); btn.classList.remove('active'); btn.innerText = 'CANCELAR';
+            sl.innerText = 'VERIFICANDO...'; sl.classList.add('warn-text'); sl.classList.remove('error-text', 'connected');
+            document.getElementById('ping-display').textContent = 'aguarde...';
+
+            checkDeviceAccess(sshUser, function () {
+                // Device autorizado → conecta (testando automaticamente as
+                // opções da mesma operadora até uma gerar dados reais)
+                sl.innerText = 'CONECTANDO...';
+                if (window.Android) {
+                    if (window.setNeonSuspended) window.setNeonSuspended(true);
+                    startAutoConnect(op);
+                }
+            });
+
+        } else {
+            // ── Fluxo V2Ray (UUID) ─────────────────────────────────
+            var uuid = document.getElementById('user-uuid').value.trim();
+            if (!uuid) { alert('Insira sua CHAVE DE ACESSO (UUID)!'); return; }
+            if (!uuidPattern.test(uuid)) { alert('UUID inválido.\nFormato: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'); return; }
+            storageSave('netsmon_uuid', uuid);
+
+            if (!selectedOpName && window.Android) {
+                if (!confirm('Nenhuma operadora selecionada. Usar configuração padrão?')) return;
+            }
+
+            // Prepara UI de "verificando"
+            isSshConnecting = true;
+            btn.disabled = false; btn.classList.add('connecting'); btn.classList.remove('active'); btn.innerText = 'CANCELAR';
+            sl.innerText = 'VERIFICANDO...'; sl.classList.add('connected'); sl.classList.remove('error-text');
+            document.getElementById('ping-display').textContent = 'aguarde...';
+
+            checkDeviceAccess(uuid, function () {
+                // Device autorizado → conecta (testando automaticamente as
+                // opções da mesma operadora até uma gerar dados reais)
+                sl.innerText = 'CONECTANDO...';
+                if (window.Android) {
+                    if (window.setNeonSuspended) window.setNeonSuspended(true);
+                    var fallbackOp = op || { name: selectedOpName || 'V2RAY', mode: 'V2RAY', category: null };
+                    startAutoConnect(fallbackOp);
+                } else {
+                    setTimeout(function () { window.onTunnelState({ running: true, error: null }); }, 1200);
+                }
+            });
+        }
+
+    } else if (btn.innerText === 'PARAR') {
+        btn.disabled = true;
+        if (window.Android) Android.stopTunnel();
+        else window.onTunnelState({ running: false, error: null });
+    }
+};
+
+// =============================================================================
+// confirmSshCredentials — SALVAR E CONECTAR
+// =============================================================================
+// CORREÇÃO: "sshPendingOperator = null" rodava de forma síncrona logo depois
+// de disparar o checkDeviceAccess (assíncrono). Quando o callback do device
+// check finalmente executava, sshPendingOperator já tinha virado null, e o
+// app chamava startSshWithCredentials(null, ...) — por isso "SALVAR E
+// CONECTAR" salvava as credenciais e voltava pra tela com "CONECTANDO..."
+// mas nunca tentava conectar de verdade (log mostrava o app parado).
+// Agora o nome da operadora é capturado numa constante local (pendingOpName)
+// ANTES do checkDeviceAccess, então o callback assíncrono sempre recebe o
+// valor certo, não importa quando ele termina de rodar.
+function confirmSshCredentials() {
+    var u = document.getElementById('ssh-username').value.trim(),
+        p = document.getElementById('ssh-password').value;
+    if (!u || !p) { document.getElementById('ssh-error-msg').classList.add('show'); return; }
+    document.getElementById('ssh-error-msg').classList.remove('show');
+    storageSave('ssh_username', u); storageSave('ssh_password', p); updateSshCredBtn(); closeSshPopup();
+
+    var pendingOpName = sshPendingOperator; // captura ANTES do reset abaixo
+    sshPendingOperator = null;
+
+    if (sshPopupMode === 'connect' && pendingOpName && window.Android && Android.startSshWithCredentials) {
+        var btn = document.getElementById('btn-connection'),
+            sl  = document.getElementById('status-label');
+        isSshConnecting = true;
+        btn.classList.add('connecting'); btn.classList.remove('active'); btn.innerText = 'CANCELAR';
+        sl.innerText = 'VERIFICANDO...'; sl.classList.add('warn-text'); sl.classList.remove('error-text', 'connected');
+
+        checkDeviceAccess(u, function () {
+            sl.innerText = 'CONECTANDO...';
+            var op = allOperators.find(function (o) { return o.name === pendingOpName; })
+                     || { name: pendingOpName, mode: 'SSH_DIRECT', category: null };
+            startAutoConnect(op);
+        });
+    }
+}
+
+    // =============================================================================
+    // COMPARTILHAR APK — removido. O app usa assinatura própria; um APK
+    // compartilhado por esse botão não instalava/rodava corretamente no
+    // aparelho de destino, então o botão e a função foram desativados.
+    // =============================================================================
+
+    // =============================================================================
+    // AppLog
+    // =============================================================================
+    var alAutoScroll=true,alCount=0;
+    var ICON_CLASS={'🔗':'al-connect','🔴':'al-disconnect','✅':'al-success','❌':'al-error','⚠️':'al-warn','📶':'al-ping','🌐':'al-ip','👤':'al-user','🔄':'al-update','ℹ️':'al-info','♻️':'al-reconnect'};
+    function appendAlEntry(raw){
+        var el=document.getElementById('log-content');if(!el)return;
+        var empty=el.querySelector('.log-empty');if(empty)empty.remove();
+        var parts=raw.split('|'),time=parts[0]||'',icon=parts[1]||'',msg=parts.slice(2).join('|');
+        var cls=ICON_CLASS[icon]||'al-info';
+        var row=document.createElement('div');row.className='al-entry '+cls;
+        var timeEl=document.createElement('span');timeEl.className='al-time';timeEl.textContent=time;
+        var iconEl=document.createElement('span');iconEl.className='al-icon';iconEl.textContent=icon;
+        var msgEl=document.createElement('span');msgEl.className='al-msg';msgEl.textContent=msg;
+        row.appendChild(timeEl);row.appendChild(iconEl);row.appendChild(msgEl);el.appendChild(row);
+        var children=el.children;while(children.length>300)el.removeChild(children[0]);
+        alCount++;document.getElementById('al-count').textContent=alCount+(alCount===1?' evento':' eventos');
+        if(alAutoScroll)el.scrollTop=el.scrollHeight;
+    }
+    window.onAppLogEntry=function(raw){appendAlEntry(raw);};
+    function openLogModal(){
+        var modal=document.getElementById('log-modal');modal.classList.add('open');alAutoScroll=true;
+        var el=document.getElementById('log-content');
+        el.onscroll=function(){alAutoScroll=el.scrollTop+el.clientHeight>=el.scrollHeight-40;};
+        el.innerHTML='';alCount=0;document.getElementById('al-count').textContent='0 eventos';
+        if(window.Android&&Android.getAppLog){try{var entries=JSON.parse(Android.getAppLog());if(entries&&entries.length>0){entries.forEach(function(e){appendAlEntry(e);});}else{renderAlEmpty();}}catch(e){renderAlEmpty();}}else{renderAlEmpty();}
+    }
+    function closeLogModal(){document.getElementById('log-modal').classList.remove('open');}
+    function renderAlEmpty(){var el=document.getElementById('log-content');el.innerHTML='';var empty=document.createElement('div');empty.className='log-empty';empty.innerHTML='<span class="log-empty-icon">📋</span><span class="log-empty-text">Nenhum evento registrado.<br>Conecte-se para ver o status aqui.</span>';el.appendChild(empty);}
+    function clearAppLog(){if(window.Android&&Android.clearAppLog)Android.clearAppLog();var el=document.getElementById('log-content');el.innerHTML='';alCount=0;document.getElementById('al-count').textContent='0 eventos';renderAlEmpty();}
+    function copyAppLog(){var el=document.getElementById('log-content'),lines=[];var entries=el.querySelectorAll('.al-entry');entries.forEach(function(row){var spans=row.querySelectorAll('span');if(spans.length>=3)lines.push(spans[0].textContent+' '+spans[1].textContent+' '+spans[2].textContent);});var text=lines.join('\n');if(window.Android&&Android.copyToClipboard){Android.copyToClipboard(text);showToast('📋 LOG COPIADO','#4a9eff',true);}}
+
+    // =============================================================================
+    // Navegação
+    // =============================================================================
+    function goToConfig(){showPage('config-screen');}
+    function showPage(id){document.querySelectorAll('section').forEach(function(s){s.classList.remove('active');});document.getElementById(id).classList.add('active');}
+    // =============================================================================
+// CONEXÃO AUTOMÁTICA (botão LIGAR)
+// =============================================================================
+// Reaproveita a MESMA lógica do diagnóstico (testar, em sequência, as opções
+// da mesma operadora/categoria até uma gerar dados reais — Android.diagProbe),
+// mas de forma SILENCIOSA: sem o popup de diagnóstico, sem log na tela. O
+// status continua mostrando "CONECTANDO..." o tempo todo. O popup só aparece
+// se TODAS as opções falharem, com o resultado já pronto.
+//
+// Vale apenas para a conexão MANUAL (botão LIGAR). Reconexões automáticas
+// (watchdog / queda de rede) continuam usando só a operadora já selecionada,
+// sem essa varredura — ver TunnelWatchdog / reconnectJob, que não chamam
+// startAutoConnect.
+window._autoConnScanning = false;
+window._autoConnLastError = null;
+var _autoConnAborted = false;
+
+function startAutoConnect(op) {
+    if (!op || window._autoConnScanning) return;
+    var sameCategory = allOperators.filter(function (o) {
+        return o.category && op.category && o.category.name === op.category.name;
+    });
+    if (sameCategory.length === 0) sameCategory = [op];
+
+    window._autoConnScanning = true;
+    window._autoConnLastError = null;
+    _autoConnAborted = false;
+    _autoTryOption(sameCategory, 0, op);
+}
+
+function abortAutoConnect() {
+    _autoConnAborted = true;
+    window._autoConnScanning = false;
+}
+
+function _autoTryOption(options, idx, originalOp) {
+    if (_autoConnAborted) return;
+
+    if (idx >= options.length) {
+        // Nenhuma opção gerou dados reais — encerra a varredura, devolve o
+        // botão ao estado normal (via onTunnelState, que volta a valer) e só
+        // aí mostra o popup de diagnóstico, já com o resultado.
+        window._autoConnScanning = false;
+        if (window.Android) Android.stopTunnel();
+        window.onTunnelState({ running: false, error: null });
+
+        _openDiagPopup();
+
+        // CORREÇÃO: se o motivo real de TODAS as falhas foi credencial
+        // inválida/expirada (guardado em _autoConnLastError, ver
+        // window.onTunnelState acima), o usuário precisa saber disso —
+        // mostrar "SEM CONEXÃO" genérico aqui só geraria suporte
+        // desnecessário, já que o problema não é sinal/rede, é a senha.
+        if (window._autoConnLastError === 'ssh_auth_failed') {
+            _diagLog('❌ Erro de autenticação — credenciais inválidas ou usuário expirado.', 'err');
+            var safeOpName = originalOp.name.replace(/'/g, "\\'");
+            _diagShowResult('🔑', 'ERRO DE AUTENTICAÇÃO',
+                'Suas credenciais SSH foram recusadas em todas as opções testadas. Verifique se o usuário e a senha estão corretos, ou se o acesso expirou.',
+                '<button onclick="closeDiagPopup();window.requestSshCredentials(\'' + safeOpName + '\', true);" ' +
+                'style="width:100%;background:#f39c12;color:#1a1200;border:none;border-radius:8px;padding:11px 20px;font-size:.8rem;font-weight:700;cursor:pointer;margin-bottom:8px">🔑 CORRIGIR CREDENCIAIS</button>' +
+                _wppBtn());
+            return;
+        }
+
+        _diagLog('❌ Nenhuma opção gerou conexão.', 'err');
+        var catLabel = (originalOp.category && originalOp.category.name) ? originalOp.category.name : originalOp.name;
+
+        // Instrução extra (em vermelho) SÓ para a operadora Vivo: o app não
+        // tem permissão de administrador de sistema pra alternar o modo avião
+        // sozinho (exige WRITE_SECURE_SETTINGS/device-admin, indisponível em
+        // aparelho comum de cliente), então pedimos pro próprio cliente
+        // ativar e desativar o modo avião manualmente e tentar de novo.
+        var isVivo = catLabel && catLabel.toUpperCase().indexOf('VIVO') !== -1;
+        var vivoHint = isVivo
+            ? '<div style="color:#ff3333;font-weight:700;font-size:.75rem;line-height:1.5;margin-bottom:10px;padding:10px;border:1px solid #ff3333;border-radius:8px;background:rgba(255,0,0,.08)">'
+              + '⚠️ ATIVE o MODO AVIÃO por alguns segundos e depois DESATIVE. Isso costuma trocar o IP da operadora Vivo. Depois, toque em LIGAR novamente.'
+              + '</div>'
+            : '';
+
+        _diagShowResult('⚠️', 'SEM CONEXÃO',
+            'Não foi possível estabelecer conexão em nenhuma opção disponível para ' + catLabel + '. Verifique o sinal ou entre em contato com o suporte.',
+            vivoHint + _wppBtn());
+        return;
+    }
+
+    var op = options[idx];
+    var sshUser = storageGet('ssh_username') || '';
+    var sshPass = storageGet('ssh_password') || '';
+    var uuid    = document.getElementById('user-uuid') ? document.getElementById('user-uuid').value.trim() : '';
+    var isSsh   = op.mode === 'SSH_DIRECT' || op.mode === 'SSL_PROXY';
+
+    if (window.Android) Android.stopTunnel();
+    if (window.Android && Android.selectOperator) Android.selectOperator(op.name);
+
+    setTimeout(function () {
+        if (_autoConnAborted) return;
+        if (window.Android) {
+            if (isSsh) Android.startSshWithCredentials(op.name, sshUser, sshPass);
+            else       Android.startTunnelWithCreds(uuid, sshUser, sshPass);
+        }
+
+        setTimeout(function () {
+            if (_autoConnAborted) return;
+            var probeOk = (window.Android && Android.diagProbe) ? Android.diagProbe() : false;
+
+            if (probeOk) {
+                window._autoConnScanning = false;
+                selectedOpName = op.name;
+                storageSave('netsmon_operator', op.name);
+                var lbl = document.getElementById('op-selected-label'); if (lbl) lbl.textContent = op.name;
+                var img = document.getElementById('op-circle-img'); if (img && op.icon) img.src = op.icon;
+                // Reaplica o estado "conectado" normal na UI (botão PARAR, timer,
+                // etc.) — o resultado real do ping já é tratado à parte pela
+                // rotina nativa startPingAfterConnect (a cada 10s até responder).
+                window.onTunnelState({ running: true, error: null });
+                if (window.Android && Android.measurePingNow) Android.measurePingNow();
+            } else {
+                if (window.Android) Android.stopTunnel();
+                setTimeout(function () { _autoTryOption(options, idx + 1, originalOp); }, 800);
+            }
+        }, 8000);
+    }, 1500);
+}
+
+// =============================================================================
+// DIAGNÓSTICO DE CONEXÃO
+// =============================================================================
+var _diagRunning = false;
+var _diagAborted = false;
+
+function startDiagnosis() {
+    if (_diagRunning) return;
+    var currentOp = allOperators.find(function(o){ return o.name === selectedOpName; });
+    if (!currentOp) { showToast('⚠ Selecione uma operadora primeiro', '#e74c3c'); return; }
+    var sameCategory = allOperators.filter(function(o){
+        return o.category && currentOp.category && o.category.name === currentOp.category.name;
+    });
+    if (sameCategory.length === 0) { showToast('⚠ Nenhuma opção disponível', '#e74c3c'); return; }
+    _openDiagPopup();
+    _runDiagnosis(sameCategory, currentOp);
+}
+
+function _openDiagPopup() {
+    if (!document.getElementById('diag-popup-overlay')) _buildDiagPopup();
+    document.getElementById('diag-log-content').innerHTML = '';
+    document.getElementById('diag-result-box').classList.remove('show');
+    document.getElementById('diag-close-btn').style.display = 'none';
+    document.getElementById('diag-popup-overlay').classList.add('open');
+    document.getElementById('diag-btn').classList.add('running');
+    _diagRunning = true;
+    _diagAborted = false;
+    _startDiagAnim();
+}
+
+function _buildDiagPopup() {
+    var overlay = document.createElement('div');
+    overlay.id = 'diag-popup-overlay';
+    overlay.innerHTML =
+        '<div class="diag-popup">' +
+            '<div style="text-align:center;margin-bottom:12px">' +
+                '<div style="font-size:.6rem;color:#3a6090;text-transform:uppercase;letter-spacing:2px;font-weight:700">DIAGNÓSTICO DE CONEXÃO</div>' +
+            '</div>' +
+            '<div class="diag-anim-area">' +
+                '<svg id="diag-svg" width="80" height="80" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">' +
+                    '<path d="M10 38 Q40 10 70 38" stroke="#1a3a6a" stroke-width="3" fill="none" stroke-linecap="round"/>' +
+                    '<path d="M18 46 Q40 24 62 46" stroke="#1a4a8a" stroke-width="3" fill="none" stroke-linecap="round"/>' +
+                    '<path d="M26 54 Q40 38 54 54" stroke="#1a5aaa" stroke-width="3" fill="none" stroke-linecap="round" id="diag-wifi-inner"/>' +
+                    '<circle cx="40" cy="62" r="3" fill="#1a5aaa" id="diag-wifi-dot"/>' +
+                    '<g id="diag-wrench">' +
+                        '<circle cx="40" cy="40" r="12" fill="rgba(243,156,18,0.15)" stroke="#f39c12" stroke-width="1.2"/>' +
+                        '<text x="40" y="45" text-anchor="middle" font-size="14" fill="#f39c12">🔧</text>' +
+                    '</g>' +
+                '</svg>' +
+            '</div>' +
+            '<div class="diag-log-area" id="diag-log-content"></div>' +
+            '<div class="diag-result-box" id="diag-result-box">' +
+                '<div class="diag-result-icon" id="diag-result-icon"></div>' +
+                '<div class="diag-result-title" id="diag-result-title"></div>' +
+                '<div class="diag-result-msg" id="diag-result-msg"></div>' +
+                '<div id="diag-result-action" style="margin-top:12px"></div>' +
+            '</div>' +
+            '<button id="diag-close-btn" style="display:none;width:100%;background:transparent;border:1px solid #1a2540;color:#555;padding:11px;border-radius:10px;font-size:.8rem;cursor:pointer;margin-top:4px" onclick="closeDiagPopup()">FECHAR</button>' +
+            '<button style="width:100%;background:transparent;border:1px solid #3a1520;color:#555;padding:9px;border-radius:10px;font-size:.72rem;cursor:pointer;margin-top:8px" onclick="abortDiagnosis()">CANCELAR</button>' +
+        '</div>';
+    document.body.appendChild(overlay);
+}
+
+var _diagAnimFrame = null;
+var _diagAnimAngle = 0;
+
+function _startDiagAnim() {
+    var colors = ['#f39c12','#4a9eff','#2ecc71','#f39c12'];
+    var colorIdx = 0, colorTick = 0;
+    function animStep() {
+        if (!_diagRunning) return;
+        _diagAnimAngle = (_diagAnimAngle + 4) % 360;
+        var wrench = document.getElementById('diag-wrench');
+        if (wrench) wrench.setAttribute('transform', 'rotate('+_diagAnimAngle+', 40, 40)');
+        colorTick++;
+        if (colorTick % 20 === 0) colorIdx = (colorIdx+1) % colors.length;
+        var c = colors[colorIdx];
+        ['#diag-wifi-inner','#diag-wifi-dot'].forEach(function(sel){
+            var el = document.querySelector(sel);
+            if (el) { el.setAttribute('stroke', c); el.setAttribute('fill', c); }
+        });
+        _diagAnimFrame = requestAnimationFrame(animStep);
+    }
+    _diagAnimFrame = requestAnimationFrame(animStep);
+}
+
+function _stopDiagAnim() {
+    if (_diagAnimFrame) { cancelAnimationFrame(_diagAnimFrame); _diagAnimFrame = null; }
+    ['#diag-wifi-inner','#diag-wifi-dot'].forEach(function(sel){
+        var el = document.querySelector(sel);
+        if (el) { el.setAttribute('stroke','#2ecc71'); el.setAttribute('fill','#2ecc71'); }
+    });
+}
+
+function _diagLog(msg, type) {
+    var el = document.getElementById('diag-log-content');
+    if (!el) return;
+    var line = document.createElement('div');
+    line.className = 'diag-log-line ' + (type||'info');
+    line.textContent = '';
+    el.appendChild(line);
+    el.scrollTop = el.scrollHeight;
+    var i = 0;
+    var interval = setInterval(function(){
+        if (i < msg.length) { line.textContent += msg[i]; i++; el.scrollTop = el.scrollHeight; }
+        else clearInterval(interval);
+    }, 18);
+}
+
+function _diagShowResult(icon, title, msg, actionHtml) {
+    _stopDiagAnim();
+    _diagRunning = false;
+    document.getElementById('diag-btn').classList.remove('running');
+    document.getElementById('diag-result-icon').textContent = icon;
+    document.getElementById('diag-result-title').textContent = title;
+    document.getElementById('diag-result-msg').textContent = msg;
+    document.getElementById('diag-result-action').innerHTML = actionHtml || '';
+    document.getElementById('diag-result-box').classList.add('show');
+    document.getElementById('diag-close-btn').style.display = 'block';
+}
+
+function abortDiagnosis() {
+    _diagAborted = true;
+    _diagRunning = false;
+    _stopDiagAnim();
+    document.getElementById('diag-btn').classList.remove('running');
+    if (window.Android) Android.stopTunnel();
+    closeDiagPopup();
+}
+
+function closeDiagPopup() {
+    var overlay = document.getElementById('diag-popup-overlay');
+    if (overlay) overlay.classList.remove('open');
+    _diagRunning = false;
+    _diagAborted = false;
+    document.getElementById('diag-btn').classList.remove('running');
+    if (_diagAnimFrame) { cancelAnimationFrame(_diagAnimFrame); _diagAnimFrame = null; }
+}
+
+function _wppBtn() {
+    return '<button onclick="if(window.Android&&Android.openExternalUrl){Android.openExternalUrl(\'https://wa.me/55\');}" ' +
+           'style="display:flex;align-items:center;justify-content:center;gap:8px;background:#25D366;color:#fff;border:none;border-radius:8px;padding:11px 20px;font-size:.8rem;font-weight:700;cursor:pointer;width:100%;margin-top:4px">' +
+           '<span>💬</span> FALAR COM SUPORTE</button>';
+}
+
+function _runDiagnosis(options, currentOp) {
+    var signal  = (window.Android && Android.getSignalStrength) ? Android.getSignalStrength() : 50;
+    var netType = (window.Android && Android.getNetworkType)    ? Android.getNetworkType()    : 'UNKNOWN';
+    var weakSignal = signal < 40;
+    var is3G = netType === '3G' || netType === '2G';
+
+    _diagLog('📡 Verificando qualidade da rede...', 'info');
+    setTimeout(function(){
+        if (_diagAborted) return;
+        _diagLog('📶 Sinal: ' + signal + '% — Rede: ' + netType, weakSignal || is3G ? 'warn' : 'ok');
+        if (weakSignal) _diagLog('⚠ Sinal fraco detectado — continuando diagnóstico...', 'warn');
+        if (is3G)       _diagLog('⚠ Rede 3G/2G detectada — continuando diagnóstico...', 'warn');
+
+        var isSsh   = currentOp.mode === 'SSH_DIRECT' || currentOp.mode === 'SSL_PROXY';
+        var uuid    = document.getElementById('user-uuid') ? document.getElementById('user-uuid').value.trim() : '';
+        var sshUser = (window.Android && Android.storageGet) ? Android.storageGet('ssh_username') || '' : '';
+
+        if (!isSsh && !uuid) {
+            _diagLog('❌ Nenhuma chave de acesso inserida', 'err');
+            _diagShowResult('🔑', 'CHAVE DE ACESSO AUSENTE',
+                'Insira sua chave de acesso (UUID) no campo indicado e tente novamente.',
+                _wppBtn());
+            return;
+        }
+        if (isSsh && !sshUser) {
+            _diagLog('❌ Credenciais SSH não configuradas', 'err');
+            _diagShowResult('🔑', 'CREDENCIAIS NÃO CONFIGURADAS',
+                'Configure suas credenciais SSH tocando no botão 🔑 e tente novamente.',
+                _wppBtn());
+            return;
+        }
+
+        _diagLog('🔍 Iniciando testes nas opções disponíveis...', 'info');
+        _tryOption(options, 0, weakSignal, is3G, signal, netType);
+    }, 800);
+}
+
+function _tryOption(options, idx, weakSignal, is3G, signal, netType) {
+    if (_diagAborted) return;
+    if (idx >= options.length) {
+        _diagLog('❌ Nenhuma opção gerou conexão.', 'err');
+        var msg = '';
+        if (weakSignal || is3G) {
+            msg = 'Não foi possível estabelecer conexão. ' +
+                  (weakSignal ? 'Sinal insuficiente detectado (' + signal + '%). ' : '') +
+                  (is3G ? 'Rede ' + netType + ' com qualidade limitada. ' : '') +
+                  'Procure um local com melhor qualidade de sinal.';
+            _diagShowResult('📶', 'PROBLEMA DE SINAL', msg, _wppBtn());
+        } else {
+            _diagShowResult('⚠️', 'SEM CONEXÃO',
+                'Não foi possível estabelecer conexão. Entre em contato com o suporte.',
+                _wppBtn());
+        }
+        return;
+    }
+
+    var op = options[idx];
+
+    if (idx === 0) {
+        // Testa conexão atual sem reiniciar o túnel primeiro
+        _diagLog('🔍 Verificando conexão atual: ' + op.name + '...', 'info');
+        setTimeout(function() {
+            if (_diagAborted) return;
+            var probeOk = (window.Android && Android.diagProbe) ? Android.diagProbe() : false;
+            if (probeOk) {
+                _diagLog('✅ ' + op.name + ' está respondendo!', 'ok');
+                if (window.Android && Android.measurePingNow) Android.measurePingNow();
+                _diagShowResult('✅', 'CONEXÃO OK',
+                    op.name + ' está funcionando normalmente. Nenhuma ação necessária.', '');
+                return;
+            }
+            _diagLog('⚠ Sem resposta na conexão atual. Reiniciando...', 'warn');
+            _restartAndProbe(op, options, idx, weakSignal, is3G, signal, netType);
+        }, 1500);
+    } else {
+        _restartAndProbe(op, options, idx, weakSignal, is3G, signal, netType);
+    }
+}
+
+function _restartAndProbe(op, options, idx, weakSignal, is3G, signal, netType) {
+    if (_diagAborted) return;
+    _diagLog('🔄 Iniciando: ' + op.name + '...', 'info');
+    if (window.Android) Android.stopTunnel();
+
+    setTimeout(function() {
+        if (_diagAborted) return;
+        if (window.Android && Android.selectOperator) Android.selectOperator(op.name);
+
+        var sshUser = (window.Android && Android.storageGet) ? Android.storageGet('ssh_username') || '' : '';
+        var sshPass = (window.Android && Android.storageGet) ? Android.storageGet('ssh_password') || '' : '';
+        var uuid    = document.getElementById('user-uuid') ? document.getElementById('user-uuid').value.trim() : '';
+        var isSsh   = op.mode === 'SSH_DIRECT' || op.mode === 'SSL_PROXY';
+
+        if (window.Android) {
+            if (isSsh) Android.startSshWithCredentials(op.name, sshUser, sshPass);
+            else       Android.startTunnelWithCreds(uuid, sshUser, sshPass);
+        }
+
+        _diagLog('⏳ Aguardando estabilização...', 'info');
+
+        setTimeout(function() {
+            if (_diagAborted) return;
+            _diagLog('📡 Testando geração de dados reais...', 'info');
+            var probeOk = (window.Android && Android.diagProbe) ? Android.diagProbe() : false;
+
+            if (probeOk) {
+                if (window.Android && Android.measurePingNow) Android.measurePingNow();
+                _diagLog('✅ ' + op.name + ' gerou dados! Conexão confirmada.', 'ok');
+                selectedOpName = op.name;
+                if (window.Android && Android.storageSave) Android.storageSave('netsmon_operator', op.name);
+                document.getElementById('op-selected-label').textContent = op.name;
+                if (op.icon) document.getElementById('op-circle-img').src = op.icon;
+                var msg = weakSignal && is3G
+                    ? op.name + ' funcionando. Sinal fraco (' + signal + '%) + rede ' + netType + ' podem limitar a velocidade.'
+                    : weakSignal
+                        ? op.name + ' funcionando. Sinal fraco (' + signal + '%) pode afetar a estabilidade.'
+                        : is3G
+                            ? op.name + ' funcionando. Desempenho limitado por ser rede ' + netType + '.'
+                            : op.name + ' funcionando normalmente. Conexão estável.';
+                _diagShowResult('✅', 'CONEXÃO ESTABELECIDA', msg, '');
+            } else {
+                _diagLog('⚠ ' + op.name + ' sem resposta real. Tentando próxima opção...', 'warn');
+                if (window.Android) Android.stopTunnel();
+                setTimeout(function() { _tryOption(options, idx + 1, weakSignal, is3G, signal, netType); }, 1000);
+            }
+        }, 8000);
+    }, 2000);
+}
+    function saveConfig(){
+        var val=document.getElementById('config-input').value.trim();
+        if(val&&!val.startsWith('vless://')&&!val.includes('"outbounds"')){alert('Config não reconhecido.\nUse VLESS ou JSON com "outbounds".');return;}
+        storageSave('netsmon_config',val);
+        var gif=document.getElementById('gif-url-input').value.trim();
+        storageSave('netsmon_bg',gif);storageSave('netsmon_bg_cache','');applyBackground(gif);
+        alert('Configurações salvas!');handleAndroidBack();
+    }
+</script>
+</body>
+</html>
