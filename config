@@ -49,7 +49,7 @@
         "security": "tls",
         "xhttpSettings": {
           "path": "/",
-          "host": "iphone2.azion.app",
+          "host": "xray9.azion.app",
           "mode": "packet-up"
         },
         "tlsSettings": {
